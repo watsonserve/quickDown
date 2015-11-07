@@ -19,24 +19,21 @@ func help() {
     fmt.Println("     -h show this help information\n")
 }
 
-func express(file *os.File, downer downloaders.Downloader, pipe chan string, repipe chan int64) {
+func express(file *os.File, downer downloaders.Downloader, pipe chan []int64, repipe chan int64) {
     for {
         task := <- pipe
-        if "" == task {
-            return
-        }
-        se := strings.Split(task, "-")
-        offset, err := strconv.ParseInt(se[0], 0, 0)
-        length, err := strconv.ParseInt(se[1], 0, 0)
+        start := task[0]
+        end := task[1]
         httpRange := make(map[string]string)
-        httpRange["range"] = se[0] + "-" + strconv.FormatInt(offset + length, 10)
+        httpRange["range"] = strconv.FormatInt(start, 10) + "-" + strconv.FormatInt(end, 10)
         response, err := downer.Load(&httpRange)
         if nil != err {
             return
         }
         size, err := strconv.ParseInt((*response)["Content-Length"], 0, 0)
+        length := 0
         for length < size {
-            leng, err := file.WriteAt([]byte((*response)["content"]), offset)
+            leng, err := file.WriteAt([]byte((*response)["content"]), start)
             if nil != err {
                 return
             }
@@ -47,8 +44,10 @@ func express(file *os.File, downer downloaders.Downloader, pipe chan string, rep
 }
 
 func ByHttp(outFile string, uri *url.URL, block *int64, sgmTrd *int64, notifyPipe chan int64) (int64, error) {
+    var taskBlock [2]int64
     downloader := downloaders.NewHttpDownloader(uri)
     response, err := downloader.Load(nil)
+
     if nil != err {
         return -1, err
     }
@@ -63,7 +62,13 @@ func ByHttp(outFile string, uri *url.URL, block *int64, sgmTrd *int64, notifyPip
             *sgmTrd++
         }
     }
-    taskPipe := make(chan string, *sgmTrd)
+    taskPipe := make(chan []int64, *sgmTrd)
+    for off := 0; off < allsize; {
+        taskBlock[0] = off
+        off += *block
+        taskBlock[1] = off
+        taskPipe <- taskBlock
+    }
     storer, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE, 0666)
     if nil != err {
       return -1, err
@@ -87,12 +92,13 @@ func main() {
     var sgmTrd int64
     var err error
     var uri *url.URL
+    var allsize int64
     block = 1
     outFile := ""
-    //cfgFile := -1
+    // cfgFile := -1
     sgmTrd = 1
     urlstr := ""
-
+    // get option
     for i := 1; i < argc; i++ {
         if '-' == argv[i-1][0] {
             switch(argv[i-1][1]) {
@@ -127,8 +133,8 @@ func main() {
         fmt.Println("ERROR block and number of thread can't both be 0")
         return
     }
-    block <<= 16
-    if sgmTrd > 512 {
+    block <<= 16    // 64KB
+    if sgmTrd > 512 {    // max number of thread
         sgmTrd = 512
     }
     if "" == urlstr {
@@ -142,7 +148,7 @@ func main() {
         return
     }
     notifyPipe := make(chan int64, 8)
-    var allsize int64
+    // filter the protocol
     switch uri.Scheme {
         case "thunder":
             fmt.Println("parse base64")
