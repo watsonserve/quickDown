@@ -10,7 +10,7 @@ import (
 )
 
 func help() {
-    fmt.Fprintln(os.Stderr, "version 1.0 License MIT")
+    fmt.Fprintln(os.Stderr, "version 1.0 License GPL2.0")
     fmt.Fprintln(os.Stderr, "(C) watsonserve.com made by James Watson\n")
     fmt.Fprintln(os.Stderr, "use [-b blockSize|-t sumOfThread|-o outputFile] url")
     fmt.Fprintln(os.Stderr, "     -b block Size, will be integer multiples of 64K. default is 1 multiple")
@@ -77,11 +77,18 @@ func ByHttp(outFile string, uri string, block *int64, sgmTrd *int64, notifyPipe 
     }
     resp.Body.Close()
     allSize := resp.ContentLength
-    if 1 == *sgmTrd {    // signal thread
+    
+    if 1 == *sgmTrd {
+
+        // signal thread
         *block = allSize
-    } else if 0 == *block {    // no repeat
+    } else if 0 == *block {
+        
+        // no repeat
         *block = allSize / *sgmTrd +1
-    } else if 0 == *sgmTrd || allSize / *block < *sgmTrd {    // less thread or more thread
+    } else if 0 == *sgmTrd || allSize / *block < *sgmTrd {
+
+        // less thread or more thread
         *sgmTrd = allSize / *block
         if 0 != allSize % *block {
             *sgmTrd++
@@ -103,7 +110,9 @@ func ByHttp(outFile string, uri string, block *int64, sgmTrd *int64, notifyPipe 
 func main() {
     argv := os.Args
     argc := len(argv)
-    if 2 > argc {  // 没有给出任何参数
+    
+    // 没有给出任何参数
+    if 2 > argc {
         help()
         return
     }
@@ -116,9 +125,11 @@ func main() {
     var storer *os.File
     block = 1
     outFile := ""
+    
     // cfgFile := -1
     sgmTrd = 1
     urlStr := ""
+    
     // get option
     for i := 1; i < argc; i++ {
         argp := argv[i]
@@ -127,7 +138,9 @@ func main() {
         if i+1 < argc {
             nextArg = argv[i+1]
         }
-        if '-' == argp[0] {  // 一个选项
+        
+        // 一个选项
+        if '-' == argp[0] {
             switch(argp[1]) {
                 case 'b':
                     block, err = strconv.ParseInt(nextArg, 0, 0)
@@ -153,7 +166,9 @@ func main() {
                     return
             }
         } else {
-            urlStr = argp  // 预下载文件地址
+
+            // 预下载文件地址
+            urlStr = argp
         }
     }
 
@@ -161,14 +176,19 @@ func main() {
         fmt.Fprintln(os.Stderr, "ERROR block and number of thread can't both be 0")
         return
     }
-    block <<= 16    // 64KB
-    if sgmTrd > 512 {    // max number of thread
+
+    // 64KB
+    block <<= 16
+    if sgmTrd > 512 {
+
+        // max number of thread
         sgmTrd = 512
     }
     if "" == urlStr {
         help()
         return
     }
+
     // debug
     fmt.Fprintln(os.Stderr, "url: " + urlStr)
 
@@ -178,6 +198,7 @@ func main() {
         return
     }
     notifyPipe := make(chan int64, 8)
+
     // filter the protocol
     switch uri.Scheme {
         case "thunder":
