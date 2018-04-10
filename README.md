@@ -6,9 +6,10 @@ quick http downloader
   go语言的多协程并发
 
 ## 使用方法
-  quickDown -b 8 -t 128 https://xxx.xxx.com/xxxx.zip
-  -b 指定分片大小，以段为单位，每段64K
-  -t 指定协程数，最大128个协程
+ quickDown -b 8 -t 128 https://xxx.xxx.com/xxxx.zip
+ * -o 指定文件名，如果不指定文件名，优先使用应答头中指定的文件名，其次使用url中的文件名
+ * -b 指定分片大小，以段为单位，每段64K
+ * -t 指定协程数，最大128个协程
 
 ## 编译
   #先设定GOPATH
