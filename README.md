@@ -13,4 +13,5 @@ quick http downloader
 
 ## 编译
   #先设定GOPATH
+
   go install quickDown
