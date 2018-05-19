@@ -1,7 +1,6 @@
 package httpDownloader
-// #cgo CFLAGS: -O3
+
 import (
-    "C"
     "strconv"
     "strings"
     "fmt"
