@@ -1,6 +1,7 @@
 package httpDownloader
-
+// #cgo CFLAGS: -O3
 import (
+    "C"
     "strconv"
     "strings"
     "fmt"
@@ -11,7 +12,7 @@ import (
     "net/http"
     "io"
     "io/ioutil"
-    "httpUtils"
+    "quickDown/httpUtils"
     "time"
 )
 

@@ -1,11 +1,13 @@
 package main
+// #cgo CFLAGS: -O3
 
 import (
+    "C"
     "strconv"
     "fmt"
     "os"
     "net/url"
-    "httpDownloader"
+    "quickDown/httpDownloader"
 )
 
 func help() {
@@ -16,6 +18,16 @@ func help() {
     fmt.Fprintln(os.Stderr, "     -t sum Of Thread. default is 1, max: 128")
     fmt.Fprintln(os.Stderr, "     -o output File. default is stdout, and sum of thread will be 1")
     fmt.Fprintln(os.Stderr, "     -h show this help information\n")
+}
+
+//export Http_download
+func Http_download(urlStr *C.char, outFile *C.char, block int64, sgmTrd int) C.int {
+    downloader := httpDownloader.New(C.GoString(urlStr), C.GoString(outFile), block, sgmTrd)
+    ret := downloader.Download()
+    if nil != ret {
+        return -1
+    }
+    return 0
 }
 
 func main() {
