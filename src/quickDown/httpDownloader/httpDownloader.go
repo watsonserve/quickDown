@@ -42,7 +42,10 @@ func sendFileAt(rs io.Reader, ws io.WriterAt, w_off int64) error {
     if nil != err {
         return err
     }
-    ws.WriteAt(buf, w_off)
+    Length, err := ws.WriteAt(buf, w_off)
+    if nil != err {
+        return err
+    }
     return nil
 }
 
@@ -54,7 +57,7 @@ func sendFileAt(rs io.Reader, ws io.WriterAt, w_off int64) error {
  * @return {int}   线程数
  * @return {int64} 块大小
  */
- func cut(size int64, intTrd int, block int64) (int, int64) {
+func cut(size int64, intTrd int, block int64) (int, int64) {
     maxTrd := int64(128)
     maxBlock := int64(1 << 20)
     defaultBlock := int64(65536)
