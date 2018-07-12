@@ -42,9 +42,12 @@ func sendFileAt(rs io.Reader, ws io.WriterAt, w_off int64) error {
     if nil != err {
         return err
     }
-    Length, err := ws.WriteAt(buf, w_off)
+    length, err := ws.WriteAt(buf, w_off)
     if nil != err {
         return err
+    }
+    if len(buf) != length {
+        fmt.Fprintf(os.Stderr, "write not complete, len: %d", length)
     }
     return nil
 }
@@ -231,6 +234,7 @@ func (this *DownTask_t) express(start int64, end int64) (*Resp_t, error) {
 
 /**
  * 消费者
+ * 传入nil使线程结束
  */
 func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t) {
     for ranger := <- taskPipe; nil != ranger; ranger = <- taskPipe {
@@ -241,10 +245,13 @@ func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t)
         }
         if nil != err {
             fmt.Fprintf(os.Stderr, "Error in worker:\nrange: %d-%d\n", ranger.Start, ranger.End)
+            fmt.Fprintln(os.Stderr, err)
         }
         ranger.Err = err
         notifyPipe <- ranger
     }
+    // 得到的任务为nil则传出nil
+    notifyPipe <- nil
 }
 
 /**
@@ -306,8 +313,15 @@ func (this *DownTask_t) load() error {
         go this.worker(taskPipe, notifyPipe)
     }
 
-    for doneSeek < size {
+    // 任务发放完成 并且 全部线程均已关闭
+    for doneSeek < size && 0 != this.SgmTrd {
         ranger := <- notifyPipe
+        // 线程退出
+        if nil == ranger {
+            this.SgmTrd--
+            continue
+        }
+        // 错误
         if nil != ranger.Err {
             return ranger.Err
         }
