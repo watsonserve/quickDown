@@ -1,5 +1,5 @@
 package main
-// #cgo CFLAGS: -O3
+/*/ #cgo CFLAGS: -O3 */
 
 import (
     "C"
