@@ -93,7 +93,7 @@ func main() {
 	}
 
 	// debug
-	fmt.Fprintln(os.Stderr, "url: "+urlStr)
+	fmt.Fprintln(os.Stderr, "url: " + urlStr)
 
 	uri, err = url.Parse(urlStr)
 	if nil != err {
@@ -107,6 +107,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "parse base64")
 		return
 	case "http":
+		fallthrough
 	case "https":
 		downloader := httpDownloader.New(urlStr, outFile, block, int(sgmTrd))
 		err = downloader.Download()

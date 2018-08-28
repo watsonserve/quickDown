@@ -141,7 +141,7 @@ func New(url_raw string, fileName string, block int64, sgmTrd int) *DownTask_t {
 
 func (this *DownTask_t) push(start int64) *Range_t {
 	max := this.maxSeek
-	if max < start {
+	if max <= start {
 		return nil
 	}
 	end := start + this.Block
