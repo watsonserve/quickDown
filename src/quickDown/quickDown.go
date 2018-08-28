@@ -14,10 +14,10 @@ import (
 func help() {
 	fmt.Fprintln(os.Stderr, "version 1.0 License GPL2.0")
 	fmt.Fprintln(os.Stderr, "(C) watsonserve.com made by James Watson\n")
-	fmt.Fprintln(os.Stderr, "use [-b blockSize|-t sumOfThread|-o outputFile] url")
+	fmt.Fprintln(os.Stderr, "use [-b blockSize|-t sumOfThread|-o outputFile|--stdout] url")
 	fmt.Fprintln(os.Stderr, "     -b block Size, will be integer multiples of 64K(max: 16). default is 1 multiple")
 	fmt.Fprintln(os.Stderr, "     -t sum Of Thread. default is 1, max: 128")
-	fmt.Fprintln(os.Stderr, "     -o output File. default is stdout, and sum of thread will be 1")
+	fmt.Fprintln(os.Stderr, "     -o output file name. auto set")
 	fmt.Fprintln(os.Stderr, "     -h show this help information\n")
 }
 
@@ -55,8 +55,8 @@ func main() {
 	for i := 1; i < argc; i++ {
 		argp := argv[i]
 		nextArg := ""
-		if i+1 < argc {
-			nextArg = argv[i+1]
+		if i + 1 < argc {
+			nextArg = argv[i + 1]
 		}
 
 		// 一个选项
@@ -68,19 +68,17 @@ func main() {
 					fmt.Fprintln(os.Stderr, "ERROR block should be a intger")
 					return
 				}
-				continue
 			case 'o':
 				outFile = nextArg
-				continue
 			case 't':
 				sgmTrd, err = strconv.ParseInt(nextArg, 0, 0)
 				if nil != err {
 					fmt.Fprintln(os.Stderr, "ERROR number of thread should be a intger")
 					return
 				}
-				continue
 			default:
 				fmt.Fprintln(os.Stderr, "ERROR unknow option "+nextArg)
+				fallthrough
 			case 'h':
 				help()
 				return

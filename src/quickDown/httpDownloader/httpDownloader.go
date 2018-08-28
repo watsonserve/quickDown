@@ -118,7 +118,8 @@ type DownTask_t struct {
 	SgmTrd        int
 	Tls           bool
 	CanRange      bool
-	Store         *os.File
+    Store         *os.File
+    startTime     int64
 }
 
 /**
@@ -130,7 +131,8 @@ func New(url_raw string, fileName string, block int64, sgmTrd int) *DownTask_t {
 		return nil
 	}
 	this := &DownTask_t{
-		Url:    url_raw,
+        LocalFileName: fileName,
+        Url:    url_raw,
 		uri:    uri,
 		Block:  block,
 		SgmTrd: sgmTrd,
@@ -191,7 +193,7 @@ func (this *DownTask_t) originInfo() error {
 				fileName = foo[1]
 			}
 			if '"' == fileName[0] {
-				fileName = fileName[1 : len(fileName)-1]
+				fileName = fileName[1 : len(fileName) - 1]
 			}
 		}
 		// 使用url的文件名
@@ -210,10 +212,16 @@ func (this *DownTask_t) originInfo() error {
  * @return {*Resp_t}
  * @return {error}
  */
-func (this *DownTask_t) express(start int64, end int64) (*Resp_t, error) {
+func (this *DownTask_t) express(start int64, end int64, repeat int) (*Resp_t, error) {
 	headers := &http.Header{}
-	headers.Add("Range", "bytes="+strconv.FormatInt(start, 10)+"-"+strconv.FormatInt(end, 10))
-	resp, err := httpUtils.Dail(this.Url, "GET", headers, this.Tls)
+    headers.Add("Range", "bytes="+strconv.FormatInt(start, 10) + "-" + strconv.FormatInt(end, 10))
+
+    resp, err := httpUtils.Dail(this.Url, "GET", headers, this.Tls)
+    
+    for ; nil != err && 0 < repeat; {
+        repeat--
+        resp, err = httpUtils.Dail(this.Url, "GET", headers, this.Tls)
+    }
 	if nil != err {
 		return nil, err
 	}
@@ -221,10 +229,6 @@ func (this *DownTask_t) express(start int64, end int64) (*Resp_t, error) {
 	if 2 != resp.StatusCode/100 {
 		return nil, errors.New(resp.Status)
 	}
-	// TODO
-	// rangeLength := resp.Header.Get("Content-Range")
-	// fmt.Fprintf(os.Stderr, "content-range: %s\n", rangeLength)
-
 	// 直接返回流
 	return &Resp_t{
 		Length: 0,
@@ -238,7 +242,7 @@ func (this *DownTask_t) express(start int64, end int64) (*Resp_t, error) {
  */
 func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t) {
 	for ranger := <-taskPipe; nil != ranger; ranger = <-taskPipe {
-		rsp, err := this.express(ranger.Start, ranger.End)
+        rsp, err := this.express(ranger.Start, ranger.End, 3)
 		if nil == err {
 			err = sendFileAt(rsp.Body, this.Store, ranger.Start)
 			rsp.Body.Close()
@@ -262,13 +266,15 @@ func (this *DownTask_t) Download() error {
 	err := this.originInfo()
 	if nil != err {
 		return err
-	}
-	// 创建本地文件
-	storer, err := os.OpenFile(this.LocalFileName, os.O_WRONLY|os.O_CREATE, 0666)
-	if nil != err {
-		return err
-	}
-	this.Store = storer
+    }
+
+    // 创建本地文件
+    outStream, err := os.OpenFile(this.LocalFileName, os.O_WRONLY|os.O_CREATE, 0666)
+    if nil != err {
+        return err
+    }
+    this.Store = outStream
+
 	// 计算分片
 	trd, block := cut(this.ContentLength, this.SgmTrd, this.Block)
 	this.SgmTrd = trd
@@ -276,7 +282,6 @@ func (this *DownTask_t) Download() error {
 
 	// debug
 	fmt.Fprintf(os.Stderr, "block: %d\nthread: %d\n", this.Block, this.SgmTrd)
-	fmt.Fprintln(os.Stderr, "waiting...")
 
 	// 准备工作已经完成
 	err = this.load()
@@ -284,23 +289,27 @@ func (this *DownTask_t) Download() error {
 		return err
 	}
 
-	storer.Close()
-	fmt.Fprintln(os.Stderr, "----\nfinish")
+	outStream.Close()
+	fmt.Fprintf(os.Stderr, "----\n{\"cost\": \"%ds\"}\n", time.Now().Unix() - this.startTime)
 
 	return nil
 }
 
 func (this *DownTask_t) load() error {
+	fmt.Fprintf(os.Stderr, "waiting")
 	taskPipe := make(chan *Range_t, this.SgmTrd)
 	notifyPipe := make(chan *Range_t, this.SgmTrd<<1)
 
+	fmt.Fprintf(os.Stderr, ".")
 	size := this.ContentLength
 	block := this.Block
 	offset := int64(0)
 	id := int64(0)
 	doneSeek := int64(0)
+    startTime := time.Now().Unix()
+    this.startTime = startTime
 
-	startTime := time.Now().Unix()
+	fmt.Fprintf(os.Stderr, ".")
 	for ; id < int64(this.SgmTrd); id++ {
 		// 入队
 		foo := this.push(offset)
@@ -313,6 +322,7 @@ func (this *DownTask_t) load() error {
 		go this.worker(taskPipe, notifyPipe)
 	}
 
+	fmt.Fprintln(os.Stderr, ".\n")
 	// 任务发放完成 并且 全部线程均已关闭
 	for 0 < this.SgmTrd {
 		ranger := <-notifyPipe
@@ -338,8 +348,12 @@ func (this *DownTask_t) load() error {
 		taskPipe <- foo
 
 		// 统计
-		progress, velocity, unit := statistic(startTime, doneSeek, size)
-		fmt.Fprintf(os.Stderr, "完成: %0.2f%%\t速度: %0.2f%s/s\t%dl %d\n", progress, velocity, unit, doneSeek, this.SgmTrd)
+		progress, velocity, unit, planTime:= statistic(startTime, doneSeek, size)
+        fmt.Fprintf(
+            os.Stderr,
+            "{\"finish\": \"%0.2f%%\", \"speed\": \"%0.2f%s/s\", \"planTime\": \"%ds\"}\n",
+            progress, velocity, unit, planTime,
+        )
 	}
 
 	return nil
@@ -348,15 +362,22 @@ func (this *DownTask_t) load() error {
 /**
  * 统计
  */
-func statistic(startTime int64, doneSeek int64, size int64) (float32, float32, string) {
+func statistic(startTime int64, doneSeek int64, size int64) (float32, float32, string, int) {
 	var unit_p byte
 	progress := float32(100 * float64(doneSeek) / float64(size))
 	if 100 < progress {
 		progress = 100
-	}
-	velocity := float32(float64(doneSeek) / float64(time.Now().Unix()-startTime))
+    }
+    delta := float64(time.Now().Unix() - startTime)
+    if delta < 0.1 {
+        delta = 0.1
+    }
+    velocity := float32(float64(doneSeek) / delta)
+
+    planTime := int((size - doneSeek) / int64(velocity))
+
 	for unit_p = 0; 1024 < velocity; unit_p++ {
 		velocity /= 1024
-	}
-	return progress, velocity, units[unit_p]
+    }
+	return progress, velocity, units[unit_p], planTime
 }
