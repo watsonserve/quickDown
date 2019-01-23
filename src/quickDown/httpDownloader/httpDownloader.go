@@ -1,17 +1,12 @@
 package httpDownloader
 
 import (
-	"errors"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
 	"os"
-	"path"
+	"quickDown/link"
+	"quickDown/myio"
 	"quickDown/httpUtils"
-	"strconv"
-	"strings"
+	"syscall"
 	"time"
 )
 
@@ -22,10 +17,6 @@ type Range_t struct {
 	Err   error
 }
 
-type Resp_t struct {
-	Length int64
-	Body   io.ReadCloser
-}
 
 type OriginFile_t struct {
 	File  DownTask_t
@@ -35,21 +26,6 @@ type OriginFile_t struct {
 
 var units = []string{
 	"B", "KB", "MB", "GB",
-}
-
-func sendFileAt(rs io.Reader, ws io.WriterAt, w_off int64) error {
-	buf, err := ioutil.ReadAll(rs)
-	if nil != err {
-		return err
-	}
-	length, err := ws.WriteAt(buf, w_off)
-	if nil != err {
-		return err
-	}
-	if len(buf) != length {
-		fmt.Fprintf(os.Stderr, "write not complete, len: %d", length)
-	}
-	return nil
 }
 
 /**
@@ -109,36 +85,35 @@ func cut(size int64, intTrd int, block int64) (int, int64) {
 }
 
 type DownTask_t struct {
-	uri           *url.URL
-	Url           string
-	LocalFileName string
-	ContentLength int64
-	maxSeek       int64
-	Block         int64
-	SgmTrd        int
-	Tls           bool
-	CanRange      bool
-    Store         *os.File
-    startTime     int64
+	httpRequester    *httpUtils.HTTPRequest
+	completedLink    *link.TaskLink
+	LocalFileName    string
+	ContentLength    int64
+	maxSeek          int64
+	Block            int64
+	SgmTrd           int
+	CanRange         bool
+    Store            *os.File
+    startTime        int64
 }
 
 /**
  * 构造函数
  */
 func New(url_raw string, fileName string, block int64, sgmTrd int) *DownTask_t {
-	uri, err := url.Parse(url_raw)
-	if nil != err {
+	httpRequester := httpUtils.New(url_raw)
+	if nil == httpRequester {
 		return nil
 	}
-	this := &DownTask_t{
+	
+	
+	return &DownTask_t{
+		httpRequester: httpRequester,
+		completedLink: link.New(nil),
         LocalFileName: fileName,
-        Url:    url_raw,
-		uri:    uri,
 		Block:  block,
 		SgmTrd: sgmTrd,
-		Tls:    "https" == uri.Scheme,
 	}
-	return this
 }
 
 func (this *DownTask_t) push(start int64) *Range_t {
@@ -161,79 +136,19 @@ func (this *DownTask_t) push(start int64) *Range_t {
  * @return {error}
  */
 func (this *DownTask_t) originInfo() error {
-	resp, err := httpUtils.Dail(this.Url, "HEAD", nil, this.Tls)
+	err, canRange, contentLength, fileName := this.httpRequester.OriginInfo()
 	if nil != err {
 		return err
 	}
-	// 应答错误
-	if 200 != resp.StatusCode {
-		return errors.New(resp.Status)
-	}
-	resp.Body.Close()
-
-	acceptRanges := resp.Header.Get("Accept-Ranges")
-	contentLength := resp.Header.Get("Content-Length")
-
-	this.CanRange = "" != acceptRanges && "none" != acceptRanges
-	fmt.Fprintf(os.Stderr, "content-length: %s\n", contentLength)
-	i, err := strconv.ParseInt(contentLength, 10, 64)
-	if nil != err {
-		return err
-	}
-	this.ContentLength = i
-	this.maxSeek = i - 1
+	this.CanRange = canRange
+	this.ContentLength = contentLength
+	this.maxSeek = contentLength - 1
 
 	// 若没有指定文件名，自动设定文件名
-	if len(this.LocalFileName) < 1 {
-		// 优先使用应答头里的文件名
-		fileName := resp.Header.Get("Content-Disposition")
-		if 0 < len(fileName) {
-			foo := strings.Split(fileName, "filename=")
-			if 0 < len(foo) {
-				fileName = foo[1]
-			}
-			if '"' == fileName[0] {
-				fileName = fileName[1 : len(fileName) - 1]
-			}
-		}
-		// 使用url的文件名
-		if len(fileName) < 1 {
-			fileName = path.Base(this.uri.Path)
-		}
+	if len(this.LocalFileName) < 1 && 0 < len(fileName) {
 		this.LocalFileName = fileName
 	}
 	return nil
-}
-
-/**
- * 请求一个分片
- * @params {int64}   start
- * @params {int64}   end
- * @return {*Resp_t}
- * @return {error}
- */
-func (this *DownTask_t) express(start int64, end int64, repeat int) (*Resp_t, error) {
-	headers := &http.Header{}
-    headers.Add("Range", "bytes="+strconv.FormatInt(start, 10) + "-" + strconv.FormatInt(end, 10))
-
-    resp, err := httpUtils.Dail(this.Url, "GET", headers, this.Tls)
-    
-    for ; nil != err && 0 < repeat; {
-        repeat--
-        resp, err = httpUtils.Dail(this.Url, "GET", headers, this.Tls)
-    }
-	if nil != err {
-		return nil, err
-	}
-	// 应答错误
-	if 2 != resp.StatusCode/100 {
-		return nil, errors.New(resp.Status)
-	}
-	// 直接返回流
-	return &Resp_t{
-		Length: 0,
-		Body:   resp.Body,
-	}, nil
 }
 
 /**
@@ -242,9 +157,9 @@ func (this *DownTask_t) express(start int64, end int64, repeat int) (*Resp_t, er
  */
 func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t) {
 	for ranger := <-taskPipe; nil != ranger; ranger = <-taskPipe {
-        rsp, err := this.express(ranger.Start, ranger.End, 3)
+        rsp, err := this.httpRequester.RequestRange(ranger.Start, ranger.End, 3)
 		if nil == err {
-			err = sendFileAt(rsp.Body, this.Store, ranger.Start)
+			err = myio.SendFileAt(rsp.Body, this.Store, ranger.Start)
 			rsp.Body.Close()
 		}
 		if nil != err {
@@ -256,6 +171,26 @@ func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t)
 	}
 	// 得到的任务为nil则传出nil
 	notifyPipe <- nil
+}
+
+func (this *DownTask_t) On(sigChannel chan os.Signal) {
+	for {
+		s := <- sigChannel
+		arr := this.completedLink.ToArray()
+		for i := 0; i < len(arr); i++ {
+			fmt.Fprintf(os.Stderr, "start: %d, end: %d\n", arr[i].Start, arr[i].End)
+		}
+		switch s {
+		case syscall.SIGINT:
+			fallthrough
+		case syscall.SIGQUIT:
+			fallthrough
+		case syscall.SIGTERM:
+			fallthrough
+		case syscall.SIGTSTP:
+			os.Exit(0)
+		}
+	}
 }
 
 /**
@@ -291,7 +226,6 @@ func (this *DownTask_t) Download() error {
 
 	outStream.Close()
 	fmt.Fprintf(os.Stderr, "----\n{\"cost\": \"%ds\"}\n", time.Now().Unix() - this.startTime)
-
 	return nil
 }
 
@@ -335,6 +269,7 @@ func (this *DownTask_t) load() error {
 		if nil != ranger.Err {
 			return ranger.Err
 		}
+		this.completedLink.Mount(ranger.Start, ranger.End)
 		doneSeek += block
 		id++
 		foo := this.push(offset)
