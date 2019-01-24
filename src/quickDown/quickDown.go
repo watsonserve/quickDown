@@ -42,9 +42,9 @@ func signalListener() (chan os.Signal) {
 		syscall.SIGINT,
 		syscall.SIGQUIT,
 		syscall.SIGTERM,
-		syscall.SIGTSTP,
-		syscall.SIGUSR1,
-		syscall.SIGUSR2,
+		// syscall.SIGTSTP,
+		// syscall.SIGUSR1,
+		// syscall.SIGUSR2,
 	)
 	return signalChannel
 }
