@@ -47,7 +47,7 @@ func sendFileAt(rs io.Reader, ws io.WriterAt, w_off int64) error {
 		return err
 	}
 	if len(buf) != length {
-		fmt.Fprintf(os.Stderr, "write not complete, len: %d", length)
+		return errors.New("write not complete")
 	}
 	return nil
 }
@@ -247,10 +247,6 @@ func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t)
 			err = sendFileAt(rsp.Body, this.Store, ranger.Start)
 			rsp.Body.Close()
 		}
-		if nil != err {
-			fmt.Fprintf(os.Stderr, "Error in worker:\nrange: %d-%d\n", ranger.Start, ranger.End)
-			fmt.Fprintln(os.Stderr, err)
-		}
 		ranger.Err = err
 		notifyPipe <- ranger
 	}
@@ -333,7 +329,9 @@ func (this *DownTask_t) load() error {
 		}
 		// 错误
 		if nil != ranger.Err {
-			return ranger.Err
+			fmt.Fprintf(os.Stderr, "Error in worker: range: %d-%d\n%s", ranger.Start, ranger.End, err.Error())
+			// TODO
+			continue
 		}
 		doneSeek += block
 		id++
