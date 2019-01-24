@@ -7,8 +7,10 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/signal"
 	"quickDown/httpDownloader"
 	"strconv"
+	"syscall"
 )
 
 func help() {
@@ -30,6 +32,22 @@ func help() {
 // 	}
 // 	return 0
 // }
+
+func signalListener() (chan os.Signal) {
+	signalChannel := make(chan os.Signal)
+	//监听所有信号
+	signal.Notify(
+		signalChannel,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGQUIT,
+		syscall.SIGTERM,
+		syscall.SIGTSTP,
+		syscall.SIGUSR1,
+		syscall.SIGUSR2,
+	)
+	return signalChannel
+}
 
 func main() {
 	argv := os.Args
@@ -99,6 +117,8 @@ func main() {
 		return
 	}
 
+	sigChannel := signalListener()
+
 	// filter the protocol
 	switch uri.Scheme {
 	case "thunder":
@@ -108,6 +128,7 @@ func main() {
 		fallthrough
 	case "https":
 		downloader := httpDownloader.New(urlStr, outFile, block, int(sgmTrd))
+		go downloader.On(sigChannel)
 		err = downloader.Download()
 		break
 	default:
