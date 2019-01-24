@@ -2,13 +2,14 @@ package httpUtils
 
 import (
 	"errors"
-    "crypto/tls"
+	"crypto/tls"
 	"io"
     "net/http"
 	"net/url"
 	"path"
     "strconv"
     "strings"
+	"time"
 )
 
 type Resp_t struct {
@@ -66,11 +67,20 @@ func Dail(urlStr string, method string, headers *http.Header, useTls bool) (*htt
 	headers := &http.Header{}
     headers.Add("Range", "bytes="+strconv.FormatInt(start, 10) + "-" + strconv.FormatInt(end, 10))
 
-    resp, err := Dail(this.url, "GET", headers, this.useTls)
-    
-    for ; nil != err && 0 < repeat; {
+	resp, err := Dail(this.url, "GET", headers, this.useTls)
+
+	delay := 100
+    for {
         repeat--
-        resp, err = Dail(this.url, "GET", headers, this.useTls)
+		resp, err = Dail(this.url, "GET", headers, this.useTls)
+		if nil != err && 0 < repeat {
+			time.Sleep(time.Millisecond * time.Duration(delay))
+			if delay < 2000 {
+				delay += 200
+			}
+			continue
+		}
+		break
     }
 	if nil != err {
 		return nil, err

@@ -35,11 +35,11 @@ func line(foo_s int64, foo_e int64, bar_s int64, bar_e int64) (vec int, start in
 	}
 	tar_s := foo_s
 	// foo的起点在bar中间
-	if bar_s < foo_s && foo_s < bar_e {
+	if bar_s < foo_s && foo_s <= bar_e {
 		tar_s = bar_s
 	}
 	tar_e := foo_e
-	if bar_s < foo_e && foo_e < bar_e {
+	if bar_s <= foo_e && foo_e < bar_e {
 		tar_e = bar_e
 	}
 	return 0, tar_s, tar_e
