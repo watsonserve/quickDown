@@ -127,9 +127,24 @@ func main() {
 	case "http":
 		fallthrough
 	case "https":
-		downloader := httpDownloader.New(urlStr, outFile, block, int(sgmTrd))
+		downloader := httpDownloader.New(urlStr, block, int(sgmTrd))
+		// 获取远端文件信息
+		err, fileName := downloader.OriginInfo()
+		if nil != err {
+			return err
+		}
+		// 若没有指定文件名，自动设定文件名
+		if len(outFile) < 1 && 0 < len(fileName) {
+			outFile = fileName
+		}
+
+		// 创建本地文件
+		outStream, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE, 0666)
+		if nil != err {
+			return err
+		}
 		go downloader.On(sigChannel)
-		err = downloader.Download()
+		err = downloader.Download(outStream)
 		break
 	default:
 		fmt.Printf("ERROR unsuppored protocol %s\n", uri.Scheme)

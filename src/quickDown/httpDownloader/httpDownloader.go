@@ -2,6 +2,7 @@ package httpDownloader
 
 import (
     "fmt"
+    "io"
     "os"
     "quickDown/link"
     "quickDown/myio"
@@ -87,20 +88,19 @@ func cut(size int64, intTrd int, block int64) (int, int64) {
 type DownTask_t struct {
     httpRequester    *httpUtils.HTTPRequest
     completedLink    *link.TaskLink
-    LocalFileName    string
-    ContentLength    int64
+    store            *io.WriterAt
     maxSeek          int64
-    Block            int64
-    SgmTrd           int
-    CanRange         bool
-    Store            *os.File
+    contentLength    int64
+    block            int64
+    sgmTrd           int
+    canRange         bool
     startTime        int64
 }
 
 /**
  * 构造函数
  */
-func New(url_raw string, fileName string, block int64, sgmTrd int) *DownTask_t {
+func New(url_raw string, block int64, sgmTrd int) *DownTask_t {
     httpRequester := httpUtils.New(url_raw)
     if nil == httpRequester {
         return nil
@@ -109,9 +109,10 @@ func New(url_raw string, fileName string, block int64, sgmTrd int) *DownTask_t {
     return &DownTask_t{
         httpRequester: httpRequester,
         completedLink: link.New(nil),
-        LocalFileName: fileName,
-        Block:  block,
-        SgmTrd: sgmTrd,
+        store: nil,
+        contentLength: 0,
+        block:  block,
+        sgmTrd: sgmTrd,
     }
 }
 
@@ -120,7 +121,7 @@ func (this *DownTask_t) push(start int64) *Range_t {
     if max <= start {
         return nil
     }
-    end := start + this.Block
+    end := start + this.block
     if max < end {
         end = max
     }
@@ -134,20 +135,16 @@ func (this *DownTask_t) push(start int64) *Range_t {
  * 试着获取远端信息，文件名和内容长度
  * @return {error}
  */
-func (this *DownTask_t) originInfo() error {
+func (this *DownTask_t) OriginInfo() (error, string) {
     err, canRange, contentLength, fileName := this.httpRequester.OriginInfo()
     if nil != err {
-        return err
+        return err, nil
     }
-    this.CanRange = canRange
-    this.ContentLength = contentLength
+    this.canRange = canRange
+    this.contentLength = contentLength
     this.maxSeek = contentLength - 1
 
-    // 若没有指定文件名，自动设定文件名
-    if len(this.LocalFileName) < 1 && 0 < len(fileName) {
-        this.LocalFileName = fileName
-    }
-    return nil
+    return nil, fileName
 }
 
 /**
@@ -158,7 +155,7 @@ func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t)
     for ranger := <-taskPipe; nil != ranger; ranger = <-taskPipe {
         rsp, err := this.httpRequester.RequestRange(ranger.Start, ranger.End, 3)
         if nil == err {
-            err = myio.SendFileAt(rsp.Body, this.Store, ranger.Start)
+            err = myio.SendFileAt(rsp.Body, this.store, ranger.Start)
             rsp.Body.Close()
         }
         ranger.Err = err
@@ -191,27 +188,22 @@ func (this *DownTask_t) On(sigChannel chan os.Signal) {
 /**
  * 生产者
  */
-func (this *DownTask_t) Download() error {
-    // 获取远端文件信息
-    err := this.originInfo()
-    if nil != err {
-        return err
+func (this *DownTask_t) Download(outStream *io.WriterAt) error {
+    if this.contentLength < 1 {
+        return errors.New("unknow origin file size")
     }
-
-    // 创建本地文件
-    outStream, err := os.OpenFile(this.LocalFileName, os.O_WRONLY|os.O_CREATE, 0666)
-    if nil != err {
-        return err
+    if nil == outStream {
+        return errors.New("no out stream")
     }
-    this.Store = outStream
+    this.store = outStream;
 
     // 计算分片
-    trd, block := cut(this.ContentLength, this.SgmTrd, this.Block)
-    this.SgmTrd = trd
-    this.Block = block
+    trd, block := cut(this.contentLength, this.sgmTrd, this.block)
+    this.sgmTrd = trd
+    this.block = block
 
     // debug
-    fmt.Fprintf(os.Stderr, "block: %d\nthread: %d\n", this.Block, this.SgmTrd)
+    fmt.Fprintf(os.Stderr, "block: %d\nthread: %d\n", this.block, this.sgmTrd)
 
     // 准备工作已经完成
     err = this.load()
@@ -226,12 +218,12 @@ func (this *DownTask_t) Download() error {
 
 func (this *DownTask_t) load() error {
     fmt.Fprintf(os.Stderr, "waiting")
-    taskPipe := make(chan *Range_t, this.SgmTrd)
-    notifyPipe := make(chan *Range_t, this.SgmTrd<<1)
+    taskPipe := make(chan *Range_t, this.sgmTrd)
+    notifyPipe := make(chan *Range_t, this.sgmTrd << 1)
 
     fmt.Fprintf(os.Stderr, ".")
-    size := this.ContentLength
-    block := this.Block
+    size := this.contentLength
+    block := this.block
     offset := int64(0)
     id := int64(0)
     doneSeek := int64(0)
@@ -239,7 +231,7 @@ func (this *DownTask_t) load() error {
     this.startTime = startTime
 
     fmt.Fprintf(os.Stderr, ".")
-    for ; id < int64(this.SgmTrd); id++ {
+    for ; id < int64(this.sgmTrd); id++ {
         // 入队
         foo := this.push(offset)
         if nil == foo {
@@ -253,11 +245,11 @@ func (this *DownTask_t) load() error {
 
     fmt.Fprintln(os.Stderr, ".\n")
     // 任务发放完成 并且 全部线程均已关闭
-    for 0 < this.SgmTrd {
+    for 0 < this.sgmTrd {
         ranger := <-notifyPipe
         // 线程退出
         if nil == ranger {
-            this.SgmTrd--
+            this.sgmTrd--
             continue
         }
         // 错误
