@@ -131,7 +131,8 @@ func main() {
 		// 获取远端文件信息
 		err, fileName := downloader.OriginInfo()
 		if nil != err {
-			return err
+                        fmt.Fprintln(os.Stderr, err)
+			return
 		}
 		// 若没有指定文件名，自动设定文件名
 		if len(outFile) < 1 && 0 < len(fileName) {
@@ -141,13 +142,14 @@ func main() {
 		// 创建本地文件
 		outStream, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE, 0666)
 		if nil != err {
-			return err
+                        fmt.Fprintln(os.Stderr, err)
+			return
 		}
 		go downloader.On(sigChannel)
 		err = downloader.Download(outStream)
 		break
 	default:
-		fmt.Printf("ERROR unsuppored protocol %s\n", uri.Scheme)
+		fmt.Fprintf(os.Stderr, "ERROR unsuppored protocol %s\n", uri.Scheme)
 		return
 	}
 	if nil != err {

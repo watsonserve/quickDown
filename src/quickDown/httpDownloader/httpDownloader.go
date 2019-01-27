@@ -1,8 +1,8 @@
 package httpDownloader
 
 import (
+    "errors"
     "fmt"
-    "io"
     "os"
     "quickDown/link"
     "quickDown/myio"
@@ -88,7 +88,7 @@ func cut(size int64, intTrd int, block int64) (int, int64) {
 type DownTask_t struct {
     httpRequester    *httpUtils.HTTPRequest
     completedLink    *link.TaskLink
-    store            *io.WriterAt
+    store            *os.File
     maxSeek          int64
     contentLength    int64
     block            int64
@@ -138,7 +138,7 @@ func (this *DownTask_t) push(start int64) *Range_t {
 func (this *DownTask_t) OriginInfo() (error, string) {
     err, canRange, contentLength, fileName := this.httpRequester.OriginInfo()
     if nil != err {
-        return err, nil
+        return err, ""
     }
     this.canRange = canRange
     this.contentLength = contentLength
@@ -188,7 +188,7 @@ func (this *DownTask_t) On(sigChannel chan os.Signal) {
 /**
  * 生产者
  */
-func (this *DownTask_t) Download(outStream *io.WriterAt) error {
+func (this *DownTask_t) Download(outStream *os.File) error {
     if this.contentLength < 1 {
         return errors.New("unknow origin file size")
     }
@@ -206,7 +206,7 @@ func (this *DownTask_t) Download(outStream *io.WriterAt) error {
     fmt.Fprintf(os.Stderr, "block: %d\nthread: %d\n", this.block, this.sgmTrd)
 
     // 准备工作已经完成
-    err = this.load()
+    err := this.load()
     if nil != err {
         return err
     }
