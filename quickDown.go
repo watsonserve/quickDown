@@ -127,11 +127,15 @@ func main() {
 	case "http":
 		fallthrough
 	case "https":
-		downloader := httpDownloader.New(urlStr, block, int(sgmTrd))
+		downloader, err := httpDownloader.New(urlStr, block, int(sgmTrd))
+		if nil != err {
+            fmt.Fprintln(os.Stderr, err)
+			return
+		}
 		// 获取远端文件信息
 		err, fileName := downloader.OriginInfo()
 		if nil != err {
-                        fmt.Fprintln(os.Stderr, err)
+            fmt.Fprintln(os.Stderr, err)
 			return
 		}
 		// 若没有指定文件名，自动设定文件名

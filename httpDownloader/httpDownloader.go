@@ -100,10 +100,10 @@ type DownTask_t struct {
 /**
  * 构造函数
  */
-func New(url_raw string, block int64, sgmTrd int) *DownTask_t {
-    httpRequester := httpUtils.New(url_raw)
-    if nil == httpRequester {
-        return nil
+func New(url_raw string, block int64, sgmTrd int) (*DownTask_t, error) {
+    httpRequester, err := httpUtils.New(url_raw)
+    if nil != err {
+        return nil, err
     }
 
     return &DownTask_t{
@@ -113,7 +113,7 @@ func New(url_raw string, block int64, sgmTrd int) *DownTask_t {
         contentLength: 0,
         block:  block,
         sgmTrd: sgmTrd,
-    }
+    }, nil
 }
 
 func (this *DownTask_t) push(start int64) *Range_t {
@@ -132,22 +132,6 @@ func (this *DownTask_t) push(start int64) *Range_t {
 }
 
 /**
- * 试着获取远端信息，文件名和内容长度
- * @return {error}
- */
-func (this *DownTask_t) OriginInfo() (error, string) {
-    err, canRange, contentLength, fileName := this.httpRequester.OriginInfo()
-    if nil != err {
-        return err, ""
-    }
-    this.canRange = canRange
-    this.contentLength = contentLength
-    this.maxSeek = contentLength - 1
-
-    return nil, fileName
-}
-
-/**
  * 消费者
  * 传入nil使线程结束
  */
@@ -163,57 +147,6 @@ func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t)
     }
     // 得到的任务为nil则传出nil
     notifyPipe <- nil
-}
-
-func (this *DownTask_t) On(sigChannel chan os.Signal) {
-    for {
-        s := <- sigChannel
-        arr := this.completedLink.ToArray()
-        for i := 0; i < len(arr); i++ {
-            fmt.Printf("{start: %d, end: %d}\n", arr[i].Start, arr[i].End)
-        }
-        switch s {
-        // case syscall.SIGTSTP:
-        //     fallthrough
-        case syscall.SIGINT:
-            fallthrough
-        case syscall.SIGQUIT:
-            fallthrough
-        case syscall.SIGTERM:
-            os.Exit(0)
-        }
-    }
-}
-
-/**
- * 生产者
- */
-func (this *DownTask_t) Download(outStream *os.File) error {
-    if this.contentLength < 1 {
-        return errors.New("unknow origin file size")
-    }
-    if nil == outStream {
-        return errors.New("no out stream")
-    }
-    this.store = outStream;
-
-    // 计算分片
-    trd, block := cut(this.contentLength, this.sgmTrd, this.block)
-    this.sgmTrd = trd
-    this.block = block
-
-    // debug
-    fmt.Fprintf(os.Stderr, "block: %d\nthread: %d\n", this.block, this.sgmTrd)
-
-    // 准备工作已经完成
-    err := this.load()
-    if nil != err {
-        return err
-    }
-
-    outStream.Close()
-    fmt.Fprintf(os.Stderr, "----\n{\"cost\": \"%ds\"}\n", time.Now().Unix() - this.startTime)
-    return nil
 }
 
 func (this *DownTask_t) load() error {
@@ -304,4 +237,71 @@ func statistic(startTime int64, doneSeek int64, size int64) (float32, float32, s
         velocity /= 1024
     }
     return progress, velocity, units[unit_p], planTime
+}
+
+/**
+ * 试着获取远端信息，文件名和内容长度
+ * @return {error}
+ */
+func (this *DownTask_t) OriginInfo() (error, string) {
+    err, canRange, contentLength, fileName := this.httpRequester.OriginInfo()
+    if nil != err {
+        return err, ""
+    }
+    this.canRange = canRange
+    this.contentLength = contentLength
+    this.maxSeek = contentLength - 1
+
+    return nil, fileName
+}
+
+func (this *DownTask_t) On(sigChannel chan os.Signal) {
+    for {
+        s := <- sigChannel
+        arr := this.completedLink.ToArray()
+        for i := 0; i < len(arr); i++ {
+            fmt.Printf("{start: %d, end: %d}\n", arr[i].Start, arr[i].End)
+        }
+        switch s {
+        // case syscall.SIGTSTP:
+        //     fallthrough
+        case syscall.SIGINT:
+            fallthrough
+        case syscall.SIGQUIT:
+            fallthrough
+        case syscall.SIGTERM:
+            os.Exit(0)
+        }
+    }
+}
+
+/**
+ * 生产者
+ */
+func (this *DownTask_t) Download(outStream *os.File) error {
+    if this.contentLength < 1 {
+        return errors.New("unknow origin file size")
+    }
+    if nil == outStream {
+        return errors.New("no out stream")
+    }
+    this.store = outStream;
+
+    // 计算分片
+    trd, block := cut(this.contentLength, this.sgmTrd, this.block)
+    this.sgmTrd = trd
+    this.block = block
+
+    // debug
+    fmt.Fprintf(os.Stderr, "block: %d\nthread: %d\n", this.block, this.sgmTrd)
+
+    // 准备工作已经完成
+    err := this.load()
+    if nil != err {
+        return err
+    }
+
+    outStream.Close()
+    fmt.Fprintf(os.Stderr, "----\n{\"cost\": \"%ds\"}\n", time.Now().Unix() - this.startTime)
+    return nil
 }

@@ -4,8 +4,10 @@ import (
 	"errors"
 	"crypto/tls"
 	"io"
+	"net"
     "net/http"
 	"net/url"
+	"net/http/httputil"
 	"path"
     "strconv"
     "strings"
@@ -20,40 +22,63 @@ type Resp_t struct {
 type HTTPRequest struct {
 	uri       *url.URL
 	url       string
+	addr      string
 	useTls    bool
 }
 
-func Dail(urlStr string, method string, headers *http.Header, useTls bool) (*http.Response, error) {
-    client := &http.Client{}
-    if useTls {
-        client.Transport = &http.Transport{
-            TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-        }
-    }
+func Dail(addr string, urlStr string, method string, headers *http.Header, useTls bool) (*http.Response, error) {
     req, err := http.NewRequest(method, urlStr, nil)
     if nil != err {
         return nil, err
     }
     if nil != headers {
         req.Header = *headers
+	}
+	
+	conn, err := net.Dial("tcp", addr)
+    if nil != err {
+        return nil, err
     }
-    return client.Do(req)
+    if useTls {
+		conn = tls.Client(conn, &tls.Config{InsecureSkipVerify: true})
+	}
+	clientConn := httputil.NewClientConn(conn, nil)
+    return clientConn.Do(req)
 }
 
 /**
  * 构造函数
  */
- func New(url_raw string) *HTTPRequest {
-	uri, err := url.Parse(url_raw)
-	if nil != err {
-		return nil
+func New(url_raw string) (*HTTPRequest, error) {
+	var err error
+	for {
+		uri, err := url.Parse(url_raw)
+		if nil != err {
+			break
+		}
+
+		useTls := "https" == uri.Scheme
+		host, port, err := net.SplitHostPort(uri.Host)
+		if nil != err {
+			host = uri.Host
+			port = "80"
+			if useTls {
+				port = "443"
+			}
+		}
+		ips, err := net.LookupIP(host)
+		if nil != err {
+			break
+		}
+		this := &HTTPRequest{
+			url:    url_raw,
+			uri:    uri,
+			addr:   ips[0].String() + ":" + port,
+			useTls: useTls,
+		}
+		return this, nil
 	}
-	this := &HTTPRequest{
-        url:       url_raw,
-		uri:       uri,
-		useTls:    "https" == uri.Scheme,
-	}
-	return this
+	return nil, err
 }
 
 /**
@@ -67,12 +92,12 @@ func Dail(urlStr string, method string, headers *http.Header, useTls bool) (*htt
 	headers := &http.Header{}
     headers.Add("Range", "bytes="+strconv.FormatInt(start, 10) + "-" + strconv.FormatInt(end, 10))
 
-	resp, err := Dail(this.url, "GET", headers, this.useTls)
+	resp, err := Dail(this.addr, this.url, "GET", headers, this.useTls)
 
 	delay := 100
     for {
         repeat--
-		resp, err = Dail(this.url, "GET", headers, this.useTls)
+		resp, err = Dail(this.addr, this.url, "GET", headers, this.useTls)
 		if nil != err && 0 < repeat {
 			time.Sleep(time.Millisecond * time.Duration(delay))
 			if delay < 2000 {
@@ -101,8 +126,8 @@ func Dail(urlStr string, method string, headers *http.Header, useTls bool) (*htt
  * 试着获取远端信息，文件名和内容长度
  * @return {error}
  */
- func (this *HTTPRequest) OriginInfo() (error, bool, int64, string) {
-	resp, err := Dail(this.url, "HEAD", nil, this.useTls)
+func (this *HTTPRequest) OriginInfo() (error, bool, int64, string) {
+	resp, err := Dail(this.addr, this.url, "HEAD", nil, this.useTls)
 	if nil != err {
 		return err, false, 0, ""
 	}
