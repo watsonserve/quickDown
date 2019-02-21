@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"quickDown/httpDownloader"
+	"github.com/watsonserve/quickDown/httpDownloader"
 	"strconv"
 	"syscall"
 )

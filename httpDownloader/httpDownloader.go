@@ -4,9 +4,9 @@ import (
     "errors"
     "fmt"
     "os"
-    "quickDown/link"
-    "quickDown/myio"
-    "quickDown/httpUtils"
+    "github.com/watsonserve/quickDown/link"
+    "github.com/watsonserve/quickDown/myio"
+    "github.com/watsonserve/quickDown/httpUtils"
     "syscall"
     "time"
 )
