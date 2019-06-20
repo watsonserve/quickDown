@@ -29,6 +29,10 @@ var units = []string{
     "B", "KB", "MB", "GB",
 }
 
+const MAX_THREAD_COUNT int64 = 256
+const MAX_BLOCK_SIZE int64 = 1 << 20
+const DEFAULT_BLOCK_SIZE int64 = 65536
+
 /**
  * 分片
  * @params {int64} 总大小
@@ -38,9 +42,9 @@ var units = []string{
  * @return {int64} 块大小
  */
 func cut(size int64, intTrd int, block int64) (int, int64) {
-    maxTrd := int64(128)
-    maxBlock := int64(1 << 20)
-    defaultBlock := int64(65536)
+    maxTrd := MAX_THREAD_COUNT
+    maxBlock := MAX_BLOCK_SIZE
+    defaultBlock := DEFAULT_BLOCK_SIZE
     trd := int64(intTrd)
     block <<= 16
 
