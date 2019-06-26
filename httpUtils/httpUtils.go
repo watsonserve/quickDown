@@ -89,29 +89,28 @@ func New(url_raw string) (*HTTPRequest, error) {
  * @return {error}
  */
  func (this *HTTPRequest) RequestRange(start int64, end int64, repeat int) (*Resp_t, error) {
+	var resp *http.Response
+	var err error
 	headers := &http.Header{}
     headers.Add("Range", "bytes="+strconv.FormatInt(start, 10) + "-" + strconv.FormatInt(end, 10))
 
-	resp, err := Dail(this.addr, this.url, "GET", headers, this.useTls)
-
 	delay := 100
     for {
-        repeat--
 		resp, err = Dail(this.addr, this.url, "GET", headers, this.useTls)
-		if nil != err && 0 < repeat {
-			time.Sleep(time.Millisecond * time.Duration(delay))
-			if delay < 2000 {
-				delay += 200
-			}
-			continue
+		if nil == err || repeat < 1 {
+			break
 		}
-		break
+		repeat--
+		time.Sleep(time.Millisecond * time.Duration(delay))
+		if delay < 2000 {
+			delay += 500
+		}
     }
 	if nil != err {
 		return nil, err
 	}
-	// 应答错误
-	if 2 != resp.StatusCode/100 {
+	// 应答错误
+	if 2 != resp.StatusCode / 100 {
 		return nil, errors.New(resp.Status)
 	}
 	// 直接返回流
@@ -120,7 +119,6 @@ func New(url_raw string) (*HTTPRequest, error) {
 		Body:   resp.Body,
 	}, nil
 }
-
 
 /**
  * 试着获取远端信息，文件名和内容长度
