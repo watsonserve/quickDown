@@ -91,7 +91,7 @@ func (this *BlockSlice_t) Pice() *Range_t {
     return this.Cut(this.doneSeek)
 }
 
-func (this *BlockSlice_t) Fill(ranger *Range_t) bool {
+func (this *BlockSlice_t) Fill() bool {
     this.doneSeek += this.block
     return this.size < this.doneSeek
 }
