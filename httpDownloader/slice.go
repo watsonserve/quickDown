@@ -71,7 +71,6 @@ func NewBlockSlice(size int64, intTrd int, block int64) *BlockSlice_t {
     }
 }
 
-
 func (this *BlockSlice_t) Cut(start int64) *Range_t {
     max := this.size - 1
     if max <= start {
