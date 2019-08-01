@@ -39,7 +39,7 @@ func (this *IOProcess_t) Write(rs io.ReadCloser, offset int64) error {
     return err
 }
 
-func (this *IOProcess_t) Record(ranger *Range_t, notifyPipe chan *Range_t) {
+func (this *IOProcess_t) Record(ranger *Range_t) {
     this.completedLink.Mount(ranger.Start, ranger.End)
     // 统计
     progress, velocity, unit, planTime := this.statistic()
