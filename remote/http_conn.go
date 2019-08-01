@@ -1,4 +1,4 @@
-package httpClient
+package remote
 
 import (
     "crypto/tls"
