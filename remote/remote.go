@@ -38,7 +38,7 @@ type HttpReader struct {
 /**
  * 构造函数
  */
-func New(url_raw string) (*HttpResource, error) {
+func NewHttpResource(url_raw string) (*HttpResource, error) {
 	var err error
 	for {
 		uri, err := url.Parse(url_raw)
