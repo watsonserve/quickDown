@@ -1,4 +1,4 @@
-package httpDownloader
+package http_downloader
 
 const MAX_THREAD_COUNT int64 = 256
 const MAX_BLOCK_SIZE int64 = 1 << 20

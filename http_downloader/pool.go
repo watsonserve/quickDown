@@ -1,4 +1,4 @@
-package httpDownloader
+package http_downloader
 
 type Range_t struct {
     Id    int64

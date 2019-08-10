@@ -1,4 +1,4 @@
-package link
+package data_struct
 
 /*/ #cgo CFLAGS: -O3 */
 
@@ -56,7 +56,7 @@ func _NewTaskLink() *TaskLink {
 	return this
 }
 
-func New(arr []Line_t) *TaskLink {
+func NewList(arr []Line_t) *TaskLink {
 	this := _NewTaskLink()
 	if nil == arr {
 		return this

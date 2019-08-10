@@ -1,10 +1,10 @@
-package httpDownloader
+package http_downloader
 
 import (
     "fmt"
 	"io"
     "os"
-    "github.com/watsonserve/quickDown/link"
+    "github.com/watsonserve/quickDown/data_struct"
     "github.com/watsonserve/quickDown/myio"
     "time"
 )
@@ -15,7 +15,7 @@ var units = []string{
 
 type IOProcess_t struct {
     BlockSlice_t
-    completedLink     *link.TaskLink
+    completedLink     *data_struct.TaskLink
     startTime         int64
     store             *os.File
 }
@@ -25,7 +25,7 @@ type IOProcess_t struct {
  */
 func NewIOProcess(blockSlice *BlockSlice_t, outStream *os.File) *IOProcess_t {
     this := &IOProcess_t{
-        completedLink: link.New(nil),
+        completedLink: data_struct.NewList(nil),
         startTime: time.Now().Unix(),
         store: outStream,
     }
@@ -50,7 +50,7 @@ func (this *IOProcess_t) Record(ranger *Range_t) {
     )
 }
 
-func (this *IOProcess_t) Check() []link.Line_t {
+func (this *IOProcess_t) Check() []data_struct.Line_t {
     return this.completedLink.ToArray()
 }
 
