@@ -136,9 +136,6 @@ func (this *DownTask_t) load() error {
  */
 func (this *DownTask_t) worker(taskPipe chan *Range_t, notifyPipe chan *Range_t) {
     httpRequester, err := this.httpResource.NewHttpReader()
-    if nil == err {
-        err = httpRequester.Conn(this.certValid)
-    }
     if nil != err {
         notifyPipe <- nil
         return

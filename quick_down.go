@@ -16,23 +16,13 @@ import (
 
 func help() {
     fmt.Fprintln(os.Stderr, "version 1.0 License GPL2.0")
-    fmt.Fprintln(os.Stderr, "(C) watsonserve.com made by James Watson\n")
+    fmt.Fprintf(os.Stderr, "(C) watsonserve.com made by James Watson\n\n")
     fmt.Fprintln(os.Stderr, "use [-b blockSize|-t sumOfThread|-o outputFile|--stdout] url")
     fmt.Fprintln(os.Stderr, "     -b block Size, will be integer multiples of 64K(max: 16). default is 1 multiple")
     fmt.Fprintln(os.Stderr, "     -t sum Of Thread. default is 1, max: 128")
     fmt.Fprintln(os.Stderr, "     -o output file name. auto set")
-    fmt.Fprintln(os.Stderr, "     -h show this help information\n")
+    fmt.Fprintf(os.Stderr, "     -h show this help information\n\n")
 }
-
-//export Http_download
-// func Http_download(urlStr *C.char, outFile *C.char, block int64, sgmTrd int) C.int {
-// 	downloader := httpDownloader.New(C.GoString(urlStr), C.GoString(outFile), block, sgmTrd)
-// 	ret := downloader.Download()
-// 	if nil != ret {
-// 		return -1
-// 	}
-// 	return 0
-// }
 
 func httpDownload(options *Options_t) (*http_downloader.DownTask_t, error) {
     // 一个远端资源对象
@@ -49,6 +39,7 @@ func httpDownload(options *Options_t) (*http_downloader.DownTask_t, error) {
     if len(options.OutFile) < 1 && 0 < len(fileName) {
         options.OutFile = fileName
     }
+    fmt.Printf("filename: %s\n", options.OutFile)
     // 创建本地文件
     outStream, err := os.OpenFile(options.OutFile, os.O_WRONLY|os.O_CREATE, 0666)
     if nil != err {
@@ -59,22 +50,29 @@ func httpDownload(options *Options_t) (*http_downloader.DownTask_t, error) {
     return downloader, nil
 }
 
-func parseResource(raw_url string) (string, error) {
+/**
+ * 解析远端资源协议类型，如为包裹协议（比如thunder://）则解除
+ * @params Options_t 需要命令行上的url地址，如需要解除包装协议会修改options.RawUrl
+ * @return string 真实协议名
+ * @return error  错误
+ */
+func parseResource(options *Options_t) (string, error) {
     // 解析远端资源类型
-    uri, err := url.Parse(raw_url)
+    uri, err := url.Parse(options.RawUrl)
     if nil != err {
         return "", errors.New("ERROR url")
     }
     // filter the protocol
     switch uri.Scheme {
     case "thunder":
-        data, err := base64.StdEncoding.DecodeString(uri.Opaque)
+        data, err := base64.StdEncoding.DecodeString(uri.Host)
         if nil != err {
             return "", err
         }
         length := len(data)
-        if "AA" == string(data[0:2]) && "ZZ" == string(data[length-2:length]) {
-            return parseResource(string(data[2:length-2]))
+        if 4 < length && "AA" == string(data[0:2]) && "ZZ" == string(data[length - 2 : length]) {
+            options.RawUrl = string(data[2:length-2])
+            return parseResource(options)
         }
     case "http":
         fallthrough
@@ -99,7 +97,7 @@ func main() {
     }
 
     // filter the protocol
-    _, err = parseResource(options.RawUrl)
+    _, err = parseResource(options)
     if nil != err {
         fmt.Fprintln(os.Stderr, err.Error())
         return
@@ -108,6 +106,7 @@ func main() {
     downloader, err := httpDownload(options)
     if nil != err {
         fmt.Fprintf(os.Stderr, "ERROR: %s\n", err.Error())
+        return
     }
 
     // 注册信号监听

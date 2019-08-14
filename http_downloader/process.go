@@ -72,7 +72,10 @@ func (this *IOProcess_t) statistic() (float32, float32, string, int) {
     }
     velocity := float32(float64(doneSeek) / delta)
 
-    planTime := int((size - doneSeek) / int64(velocity))
+    planTime := -1
+    if 0 != doneSeek {
+        planTime = int((size - doneSeek) / int64(velocity))
+    }
 
     for unit_p = 0; 1024 < velocity; unit_p++ {
         velocity /= 1024
