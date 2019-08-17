@@ -1,14 +1,27 @@
 package http_downloader
 
+import (
+    "fmt"
+    "github.com/watsonserve/quickDown/data_struct"
+    "os"
+    "time"
+)
+
 const MAX_THREAD_COUNT int64 = 256
 const MAX_BLOCK_SIZE int64 = 1 << 20
 const DEFAULT_BLOCK_SIZE int64 = 65536
 
+var units = []string{
+    "B", "KB", "MB", "GB",
+}
+
 type BlockSlice_t struct {
-    size          int64
-    doneSeek      int64
-    block         int64
     sgmTrd        int
+    size          int64
+    block         int64
+    doneSeek      int64
+    startTime     int64
+    completedLink *data_struct.TaskLink
 }
 /**
  * 分片
@@ -43,6 +56,11 @@ func NewBlockSlice(size int64, intTrd int, block int64) *BlockSlice_t {
         }
 
         // 单线程模式
+        if size < block {
+            trd = 1
+        }
+
+        // 单线程模式
         if 1 == trd {
             block = size
             break
@@ -63,11 +81,14 @@ func NewBlockSlice(size int64, intTrd int, block int64) *BlockSlice_t {
     if maxBlock < block {
         block = maxBlock
     }
+
     return &BlockSlice_t {
         size:          size,
         doneSeek:      0,
         block:         block,
         sgmTrd:        int(trd),
+        startTime:     time.Now().Unix(),
+        completedLink: data_struct.NewList(nil),
     }
 }
 
@@ -90,7 +111,48 @@ func (this *BlockSlice_t) Pice() *Range_t {
     return this.Cut(this.doneSeek)
 }
 
-func (this *BlockSlice_t) Fill() bool {
+func (this *BlockSlice_t) Fill(ranger *Range_t) bool {
     this.doneSeek += this.block
+    this.completedLink.Mount(ranger.Start, ranger.End)
+    // 统计
+    progress, velocity, unit, planTime := statistic(this.startTime, this.doneSeek, this.size)
+    fmt.Fprintf(
+        os.Stderr,
+        "{\"finish\": \"%0.2f%%\", \"speed\": \"%0.2f%s/s\", \"planTime\": \"%ds\"}\n",
+        progress, velocity, unit, planTime,
+    )
     return this.size < this.doneSeek
+}
+
+/**
+ * 非线程安全
+ */
+func (this *BlockSlice_t) Check() []data_struct.Line_t {
+    return this.completedLink.ToArray()
+}
+
+/**
+ * 统计
+ */
+func statistic(startTime int64, doneSeek int64, size int64) (float32, float32, string, int) {
+    var unit_p byte
+    progress := float32(100 * float64(doneSeek) / float64(size))
+    if 100 < progress {
+        progress = 100
+    }
+    delta := float64(time.Now().Unix() - startTime)
+    if delta < 0.1 {
+        delta = 0.1
+    }
+    velocity := float32(float64(doneSeek) / delta)
+
+    planTime := -1
+    if 0 != doneSeek {
+        planTime = int((size - doneSeek) / int64(velocity))
+    }
+
+    for unit_p = 0; 1024 < velocity; unit_p++ {
+        velocity /= 1024
+    }
+    return progress, velocity, units[unit_p], planTime
 }
