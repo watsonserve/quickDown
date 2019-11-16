@@ -15,13 +15,13 @@ import (
 )
 
 func help() {
-    fmt.Fprintln(os.Stderr, "version 1.0 License GPL2.0")
+    fmt.Fprintln(os.Stderr, "version 0.2.0 License GPL2.0")
     fmt.Fprintf(os.Stderr, "(C) watsonserve.com made by James Watson\n\n")
     fmt.Fprintln(os.Stderr, "use [-b blockSize|-t sumOfThread|-o outputFile|--stdout] url")
-    fmt.Fprintln(os.Stderr, "     -b block Size, will be integer multiples of 64K(max: 16). default is 1 multiple")
-    fmt.Fprintln(os.Stderr, "     -t sum Of Thread. default is 1, max: 128")
-    fmt.Fprintln(os.Stderr, "     -o output file name. auto set")
-    fmt.Fprintf(os.Stderr, "     -h show this help information\n\n")
+    fmt.Fprintln(os.Stderr, "     -b, --block    block Size, will be integer multiples of 64K(max: 16). default is 1 multiple")
+    fmt.Fprintln(os.Stderr, "     -t, --thread   sum Of Thread. default is 1, max: 128")
+    fmt.Fprintln(os.Stderr, "     -o, --output   output file name. auto set")
+    fmt.Fprintf(os.Stderr,  "     -h, --help     show this help information\n\n")
 }
 
 func httpDownload(options *Options_t) (*http_downloader.DownTask_t, error) {
@@ -85,11 +85,7 @@ func parseResource(options *Options_t) (string, error) {
 }
 
 func main() {
-    var err     error
-    var options *Options_t
-
-    // 获取命令行参数
-    options, err = getOptions()
+    options, err := getOptions()
     if nil != err {
         fmt.Fprintln(os.Stderr, err.Error())
         help()

@@ -2,8 +2,8 @@ package main
 
 import (
     "errors"
-    "os"
     "strconv"
+    "github.com/watsonserve/goutils"
 )
 
 type Options_t struct {
@@ -15,54 +15,65 @@ type Options_t struct {
 
 func getOptions() (*Options_t, error) {
     var err error
-    argv := os.Args
-    argc := len(argv)
+    // 获取命令行参数
+    allOptions := []goutils.Option{
+        {
+            Opt: 'b',
+            Option: "block",
+            HasParams: true,
+        },
+        {
+            Opt: 't',
+            Option: "thread",
+            HasParams: true,
+        },
+        {
+            Opt: 'o',
+            Option: "output",
+            HasParams: true,
+        },
+        {
+            Opt: 'h',
+            Option: "help",
+            HasParams: false,
+        },
+    }
+    optionMap, urls := goutils.GetOptions(allOptions)
 
-    // 没有给出任何参数
-    if 2 > argc {
-        help()
+    _, ok := optionMap["help"]
+    if ok {
         return nil, errors.New("")
     }
-    this := &Options_t {
-        SgmTrd: 1,
-        Block: 1,
-        OutFile: "",
-        RawUrl: "",
-    }
 
-    // get option
-    for i := 1; i < argc; i++ {
-        argp := argv[i]
-        nextArg := ""
-        if i + 1 < argc {
-            nextArg = argv[i + 1]
-        }
-
-        // 一个选项
-        if '-' == argp[0] {
-            switch argp[1] {
-            case 'b':
-                this.Block, err = strconv.ParseInt(nextArg, 0, 0)
-                if nil != err {
-                    return nil, errors.New("ERROR block should be a intger")
-                }
-            case 'o':
-                this.OutFile = nextArg
-            case 't':
-                trd, err := strconv.ParseInt(nextArg, 0, 0)
-                if nil != err {
-                    return nil, errors.New("ERROR number of thread should be a intger")
-                }
-                this.SgmTrd = int(trd)
-            default:
-                return nil, errors.New("ERROR unknow option " + nextArg)
-            case 'h':
-                return nil, errors.New("")
-            }
-        } else {
-            // 预下载文件地址
-            this.RawUrl = argp
+    // block
+    var block int64 = 1
+    strBlock, ok := optionMap["block"]
+    if ok {
+        block, err = strconv.ParseInt(strBlock, 0, 0)
+        if nil != err {
+            return nil, errors.New("Error block should be a intger")
         }
     }
-    return this, nil
+
+    // thread
+    var thread int64 = 1
+    strThread, ok := optionMap["thread"]
+    if ok {
+        thread, err = strconv.ParseInt(strThread, 0, 0)
+        if nil != err {
+            return nil, errors.New("Error thread should be a intger")
+        }
+    }
+
+    // url
+    if 1 != len(urls) {
+        return nil, errors.New("Error download url")
+    }
+
+    return &Options_t{
+        SgmTrd: int(thread),
+        Block: block,
+        OutFile: optionMap["output"],
+        RawUrl: urls[0],
+    }, nil
 }
