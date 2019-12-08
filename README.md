@@ -29,8 +29,5 @@ quick http downloader
   end_offset = start_offset + lehgth
 
 example:
-  stsrt: 4
 
-  end: 7
-
-  content: [4, 5, 6]
+  { stsrt: 4, end: 7 } => [4, 5, 6]
