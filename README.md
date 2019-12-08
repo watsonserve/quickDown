@@ -24,4 +24,10 @@ quick http downloader
   | 64bit | 64bit |
   | --- | --- |
   | 数组长度 | 0 |
-  | start_offset | length |
+  | start_offset | end_offset |
+
+  end_offset = start_offset + lehgth
+example:
+  stsrt: 4
+  end: 7
+  content: [4, 5, 6]
