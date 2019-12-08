@@ -12,6 +12,12 @@ quick http downloader
  * -t 指定协程数，最大128个协程
 
 ## 编译
-  #先设定GOPATH
-
   go install quickDown
+
+## 任务描述格式
+#### header
+  | | |
+  |---|---|
+  |0|远端URL|
+  |1|文件名|
+#### body
