@@ -27,7 +27,10 @@ quick http downloader
   | start_offset | end_offset |
 
   end_offset = start_offset + lehgth
+
 example:
   stsrt: 4
+
   end: 7
+
   content: [4, 5, 6]
