@@ -16,8 +16,12 @@ quick http downloader
 
 ## 任务描述格式
 #### header
-  | | |
+  | 行号 | 内容 |
   |---|---|
   |0|远端URL|
   |1|文件名|
 #### body
+  | 64bit | 64bit |
+  | --- | --- |
+  | 数组长度 | 0 |
+  | start_offset | length |
