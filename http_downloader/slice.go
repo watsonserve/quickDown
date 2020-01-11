@@ -31,7 +31,7 @@ type BlockSlice_t struct {
  * @return {int}   线程数
  * @return {int64} 块大小
  */
-func NewBlockSlice(size int64, intTrd int, block int64) *BlockSlice_t {
+func GetBlockSlice(size int64, intTrd int, block int64) (int64, int) {
     maxTrd := MAX_THREAD_COUNT
     maxBlock := MAX_BLOCK_SIZE
     defaultBlock := DEFAULT_BLOCK_SIZE
@@ -81,12 +81,15 @@ func NewBlockSlice(size int64, intTrd int, block int64) *BlockSlice_t {
     if maxBlock < block {
         block = maxBlock
     }
+    return block, int(trd)
+}
 
+func NewBlockSlice(size int64, trd int, block int64) *BlockSlice_t {
     return &BlockSlice_t {
         size:          size,
-        doneSeek:      0,
         block:         block,
-        sgmTrd:        int(trd),
+        sgmTrd:        trd,
+        doneSeek:      0,
         startTime:     time.Now().Unix(),
         completedLink: data_struct.NewList(nil),
     }

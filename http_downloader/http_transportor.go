@@ -1,48 +1,23 @@
 package http_downloader
 
 import (
-    "errors"
-    "fmt"
-    "io"
-    "io/ioutil"
-    "os"
-    "github.com/watsonserve/quickDown/remote"
+    "github.com/watsonserve/quickDown/downloader"
+    "github.com/watsonserve/quickDown/http_downloader/remote"
 )
 
 type BlockStorer struct {
     httpResource *remote.HttpResource
-    store        *os.File
+    store        *downloader.Store_t
 }
 
 /**
  * 构造函数
  */
-func NewTransportor(file *os.File, reader *remote.HttpResource) *BlockStorer {
+func NewTransportor(store *downloader.Store_t, reader *remote.HttpResource) *BlockStorer {
     return &BlockStorer {
         httpResource: reader,
-        store: file,
+        store: store,
     }
-}
-
-/**
- * 线程安全
- */
-func (this *BlockStorer) SendFileAt(rs io.ReadCloser, w_off int64) error {
-	buf, err := ioutil.ReadAll(rs)
-	if nil != err {
-		return err
-    }
-    rs.Close()
-    bugLen := len(buf)
-	length, err := this.store.WriteAt(buf, w_off)
-	if nil != err {
-		return err
-    }
-    
-	if bugLen != length {
-		return errors.New(fmt.Sprintf("write faild, len: %d", length))
-	}
-	return nil
 }
 
 /**
@@ -58,7 +33,8 @@ func (this *BlockStorer) Worker(taskPipe chan *Range_t, notifyPipe chan *Range_t
     for ranger := <- taskPipe; nil != ranger; ranger = <- taskPipe {
         rsp, err := httpRequester.Read(ranger.Start, ranger.End, 3)
         if nil == err {
-            err = this.SendFileAt(rsp.Body, ranger.Start)
+            err = this.store.SendFileAt(rsp.Body, ranger.Start)
+            rsp.Body.Close()
         }
         ranger.Err = err
         notifyPipe <- ranger

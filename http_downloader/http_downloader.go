@@ -4,47 +4,83 @@ import (
     "errors"
     "fmt"
     "os"
-    "github.com/watsonserve/quickDown/remote"
+    "github.com/watsonserve/quickDown/downloader"
+    "github.com/watsonserve/quickDown/http_downloader/remote"
     "time"
 )
 
-type OriginFile_t struct {
-    File  DownTask_t
-    Range Range_t
-    Body  []byte
+type HttpSuject_t struct {
+    sgmTrd       int
+    size         int64
+    block        int64
+    rawUrl       string
+    outFileName  string
+    httpResource *remote.HttpResource
 }
 
-type DownTask_t struct {
+type HttpTask_t struct {
     BlockSlice_t
     transportor *BlockStorer
 }
 
 /**
- * 构造函数
- */
-func New(file *os.File, reader *remote.HttpResource, block int64, sgmTrd int) *DownTask_t {
-    this := &DownTask_t{
-        BlockSlice_t: BlockSlice_t {},
-        transportor: NewTransportor(file, reader),
+    * 构造函数
+    */
+func New(options *downloader.Options_t) (*HttpSuject_t, error) {
+    // 一个远端资源对象
+    httpResource, err := remote.NewHttpResource(options.RawUrl)
+    if nil == err {
+        // 读取远端资源的元数据
+        err = httpResource.GetMeta()
     }
-    size := reader.Size()
+    if nil != err {
+        return nil, err
+    }
+    size := httpResource.Size()
+    fileName := httpResource.Filename()
+    // 若没有指定文件名，自动设定文件名
+    if 0 < len(options.OutFile) || len(fileName) < 1 {
+        fileName = options.OutFile
+    }
     // 计算分片
-    if reader.Parallelable() {
-        this.BlockSlice_t = *NewBlockSlice(size, sgmTrd, block)
-    } else {
-        this.sgmTrd = 1
-        this.size = size
-        this.block = size
+    trd := 1
+    block := size
+    if httpResource.Parallelable() {
+        block, trd = GetBlockSlice(size, options.SgmTrd, options.Block)
     }
-    // debug
-    fmt.Printf("{size: %d, block: %d, thread: %d}\r\n", size, this.block, this.sgmTrd)
-    return this
+
+    return &HttpSuject_t {
+        size:         size,
+        sgmTrd:       trd,
+        block:        block,
+        outFileName:  fileName,
+        rawUrl:       options.RawUrl,
+        httpResource: httpResource,
+    }, nil
+}
+
+func (this *HttpSuject_t) GetMeta() *downloader.Meta_t {
+    return &downloader.Meta_t {
+        Size:    this.size,
+        SgmTrd:  this.sgmTrd,
+        Block:   this.block,
+        OutFile: this.outFileName,
+        RawUrl:  this.rawUrl,
+    }
+}
+
+func (this *HttpSuject_t) CreateTask(store *downloader.Store_t) (downloader.Task_t, error) {
+    // 一个下载器实例
+    return &HttpTask_t {
+        BlockSlice_t: *NewBlockSlice(this.size, this.sgmTrd, this.block),
+        transportor: NewTransportor(store, this.httpResource),
+    }, nil
 }
 
 /**
  * 生产者
  */
-func (this *DownTask_t) Download() error {
+func (this *HttpTask_t) Download() error {
     offset := int64(0)
     id := int64(0)
     if this.size < 1 {
@@ -99,9 +135,7 @@ func (this *DownTask_t) Download() error {
     return nil
 }
 
-
-
-func (this *DownTask_t) Emit(cmd string) {
+func (this *HttpTask_t) Emit(cmd string) {
     switch cmd {
     case "check":
         arr := this.completedLink.ToArray()
@@ -113,7 +147,7 @@ func (this *DownTask_t) Emit(cmd string) {
     }
 }
 
-func (this *DownTask_t) EmitError(err error) {
+func (this *HttpTask_t) EmitError(err error) {
     fmt.Fprintf(os.Stderr, "Error: %s\n", err.Error())
     os.Exit(0)
 }
