@@ -20,12 +20,13 @@ type HttpSuject_t struct {
 
 type HttpTask_t struct {
     BlockSlice_t
-    transportor *BlockStorer
+    httpResource *remote.HttpResource
+    store        *downloader.Store_t
 }
 
 /**
-    * 构造函数
-    */
+ * 构造函数
+ */
 func New(options *downloader.Options_t) (*HttpSuject_t, error) {
     // 一个远端资源对象
     httpResource, err := remote.NewHttpResource(options.RawUrl)
@@ -73,7 +74,8 @@ func (this *HttpSuject_t) CreateTask(store *downloader.Store_t) (downloader.Task
     // 一个下载器实例
     return &HttpTask_t {
         BlockSlice_t: *NewBlockSlice(this.size, this.sgmTrd, this.block),
-        transportor: NewTransportor(store, this.httpResource),
+        httpResource: this.httpResource,
+        store:        store,
     }, nil
 }
 
@@ -86,7 +88,7 @@ func (this *HttpTask_t) Download() error {
     if this.size < 1 {
         return errors.New("unknow origin file size")
     }
-    pool := NewPool(this.transportor, this.sgmTrd)
+    pool := NewPool(this, this.sgmTrd)
 
     fmt.Fprintf(os.Stderr, ".")
     for ; id < int64(this.sgmTrd); id++ {
@@ -129,10 +131,33 @@ func (this *HttpTask_t) Download() error {
         }
         pool.Push(foo)
     }
-    this.transportor.Close()
+    this.store.Close()
     fmt.Fprintf(os.Stderr, "----\n{\"cost\": \"%ds\"}\n", time.Now().Unix() - this.startTime)
 
     return nil
+}
+
+/**
+ * 消费者
+ * 传入nil使线程结束
+ */
+func (this *HttpTask_t) Worker(taskPipe chan *Range_t, notifyPipe chan *Range_t) {
+    httpRequester, err := this.httpResource.NewHttpReader()
+    if nil != err {
+        notifyPipe <- nil
+        return
+    }
+    for ranger := <- taskPipe; nil != ranger; ranger = <- taskPipe {
+        rsp, err := httpRequester.Read(ranger.Start, ranger.End, 3)
+        if nil == err {
+            err = this.store.SendFileAt(rsp.Body, ranger.Start)
+            rsp.Body.Close()
+        }
+        ranger.Err = err
+        notifyPipe <- ranger
+    }
+    // 得到的任务为nil则传出nil
+    notifyPipe <- nil
 }
 
 func (this *HttpTask_t) Emit(cmd string) {
@@ -143,6 +168,9 @@ func (this *HttpTask_t) Emit(cmd string) {
             fmt.Printf("{start: %d, end: %d}\n", arr[i].Start, arr[i].End)
         }
     case "quit":
+        arr := this.completedLink.ToArray()
+        this.store.Sync(arr)
+        this.store.Close()
         os.Exit(0)
     }
 }
