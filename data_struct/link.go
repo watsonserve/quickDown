@@ -35,11 +35,11 @@ func line(foo_s int64, foo_e int64, bar_s int64, bar_e int64) (vec int, start in
 	}
 	tar_s := foo_s
 	// foo的起点在bar中间
-	if bar_s < foo_s && foo_s <= bar_e {
+	if bar_s < foo_s {
 		tar_s = bar_s
 	}
 	tar_e := foo_e
-	if bar_s <= foo_e && foo_e < bar_e {
+	if foo_e < bar_e {
 		tar_e = bar_e
 	}
 	return 0, tar_s, tar_e
@@ -112,6 +112,13 @@ func (this *TaskLink) Mount(start int64, end int64) {
 			// 节点扩大
 			curNode.Start = lineStart
 			curNode.End = lineEnd
+			nextNode := curNode.Next
+			// 与后序节点连接
+			if nil != nextNode && nextNode.Start <= curNode.End {
+				curNode.End = nextNode.End
+				curNode.Next = nextNode.Next
+				this.length -= 1
+			}
 		default:
 			// 下一个节点
 			p = p.Next
