@@ -2,7 +2,7 @@ package downloader
 
 import (
 	"github.com/watsonserve/quickDown/myio"
-	"io"
+    "io"
 	"os"
 	"os/signal"
 	"syscall"
@@ -36,12 +36,12 @@ type Task_t interface {
 }
 
 func ListenSign(this Task_t) {
-	signalChannel := make(chan os.Signal)
+	signalChannel := make(chan os.Signal, 1)
 	//监听所有信号
 	signal.Notify(
         signalChannel,
         syscall.SIGHUP,
-        syscall.SIGINT,
+        syscall.SIGINT, // ctrl + C
         syscall.SIGQUIT,
         syscall.SIGTERM,
         // syscall.SIGTSTP,
@@ -56,11 +56,11 @@ func ListenSign(this Task_t) {
         case syscall.SIGHUP:
             cmd = "hup"
         case syscall.SIGINT:
-            cmd = "int"
+            cmd = "quit"
         case syscall.SIGQUIT:
             cmd = "quit"
         case syscall.SIGTERM:
-            cmd = "term"
+            cmd = "quit"
         default:
             cmd = ""
         }

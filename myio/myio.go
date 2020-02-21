@@ -16,8 +16,11 @@ func (this *ReadStream) SplitFunc(data []byte, atEOF bool) (advance int, token [
     // 有且只有atEOF为true时，data可能是空数组
     var i int
     for i = 1; i < length; i++ {
-        lst := i - 1
-        if '\n' == data[i] && '\r' == data[lst] {
+        if '\n' == data[i] {
+            lst := i
+            if  '\r' == data[i - 1] {
+                lst = i - 1
+            }
             return i + 1, data[0 : lst], nil
         }
     }

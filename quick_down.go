@@ -37,6 +37,7 @@ func main() {
         if nil != err {
             break
         }
+        fmt.Printf("meta loading...\r\n")
         meta := subject.GetMeta()
         // debug
         fmt.Printf("{size: %d, block: %d, thread: %d}\r\n", meta.Size, meta.Block, meta.SgmTrd)
@@ -48,12 +49,12 @@ func main() {
         if nil != err {
             break
         }
-    
+
         // 注册信号监听
         go downloader.ListenSign(loader)
         // 监听标准输入流
         go downloader.ListenCmd(loader, os.Stdin)
-    
+
         err = loader.Download()
         if nil != err {
             break
