@@ -18,7 +18,8 @@ func help() {
     fmt.Fprintln(os.Stderr, "     -c, --config   use a config file")
     fmt.Fprintln(os.Stderr, "     -b, --block    block Size, will be integer multiples of 64K(max: 16). default is 1 multiple")
     fmt.Fprintln(os.Stderr, "     -t, --thread   sum Of Thread. default is 1, max: 256")
-    fmt.Fprintln(os.Stderr, "     -o, --output   output file name. auto set")
+    fmt.Fprintln(os.Stderr, "     -O, --out      output path")
+    fmt.Fprintln(os.Stderr, "     -o, --output   output file name (auto setted)")
     fmt.Fprintf(os.Stderr,  "     -h, --help     show this help information\n\n")
 }
 
@@ -42,6 +43,11 @@ func getOptions() (*downloader.Options_t, error) {
             HasParams: true,
         },
         {
+            Opt: 'O',
+            Option: "out",
+            HasParams: true,
+        },
+        {
             Opt: 'o',
             Option: "output",
             HasParams: true,
@@ -58,6 +64,16 @@ func getOptions() (*downloader.Options_t, error) {
     if ok {
         return nil, errors.New("")
     }
+
+    // cfgFile, ok := optionMap["config"]
+    // if ok {
+    //     // 创建本地文件
+    //     cfgStream, err := os.OpenFile(cfgFile, os.O_RDWR, 0666)
+    //     if nil != err {
+    //         fmt.Fprintf(os.Stderr, "Read Config file: %s\n", err.Error())
+    //     }
+    //     cfgStream
+    // }
 
     // block
     var block int64 = 1
@@ -87,6 +103,7 @@ func getOptions() (*downloader.Options_t, error) {
     return &downloader.Options_t {
         SgmTrd: int(thread),
         Block: block,
+        OutPath: optionMap["out"],
         OutFile: optionMap["output"],
         RawUrl: urls[0],
     }, nil

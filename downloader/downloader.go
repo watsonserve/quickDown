@@ -11,6 +11,7 @@ import (
 type Options_t struct {
     SgmTrd  int    // 线程数
     Block   int64  // 分片大小，单位：段
+    OutPath string
     OutFile string
     RawUrl  string
 }

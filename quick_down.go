@@ -18,6 +18,15 @@ func main() {
         return
     }
 
+    if "" != options.OutPath {
+        // 变更到输出目录
+        err = os.Chdir(options.OutPath)
+        if nil != err {
+            fmt.Fprintln(os.Stderr, err.Error())
+            return
+        }
+    }
+
     // filter the protocol
     proto, err := parseResource(options)
     for nil == err {

@@ -41,13 +41,13 @@ func (this *Store_t) SendFileAt(rs io.ReadCloser, w_off int64) error {
 	if nil != err {
 		return err
     }
-    bugLen := len(buf)
+    bufLen := len(buf)
 	length, err := this.outStream.WriteAt(buf, w_off)
 	if nil != err {
 		return err
     }
     
-	if bugLen != length {
+	if bufLen != length {
 		return errors.New(fmt.Sprintf("write faild, len: %d", length))
 	}
 	return nil
