@@ -4,9 +4,10 @@ import (
     "errors"
     "fmt"
     "os"
+    "time"
     "github.com/watsonserve/quickDown/downloader"
     "github.com/watsonserve/quickDown/http_downloader/remote"
-    "time"
+    "github.com/watsonserve/quickDown/link_table"
 )
 
 type HttpSuject_t struct {
@@ -70,10 +71,10 @@ func (this *HttpSuject_t) GetMeta() *downloader.Meta_t {
     }
 }
 
-func (this *HttpSuject_t) CreateTask(store *downloader.Store_t) (downloader.Task_t, error) {
+func (this *HttpSuject_t) CreateTask(store *downloader.Store_t, linker []link_table.Line_t) (downloader.Task_t, error) {
     // 一个下载器实例
     return &HttpTask_t {
-        BlockSlice_t: *NewBlockSlice(this.size, this.sgmTrd, this.block),
+        BlockSlice_t: *NewBlockSlice(this.size, this.sgmTrd, this.block, linker),
         httpResource: this.httpResource,
         store:        store,
     }, nil

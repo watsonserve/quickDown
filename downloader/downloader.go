@@ -1,11 +1,12 @@
 package downloader
 
 import (
-	"github.com/watsonserve/quickDown/myio"
     "io"
 	"os"
 	"os/signal"
 	"syscall"
+	"github.com/watsonserve/quickDown/myio"
+    "github.com/watsonserve/quickDown/link_table"
 )
 
 type Options_t struct {
@@ -14,6 +15,7 @@ type Options_t struct {
     OutPath string
     OutFile string
     RawUrl  string
+    ConfigFile string
 }
 
 type Meta_t struct {
@@ -26,7 +28,7 @@ type Meta_t struct {
 
 type Subject_t interface {
     GetMeta() *Meta_t
-    CreateTask(store *Store_t) (Task_t, error)
+    CreateTask(store *Store_t, linker []link_table.Line_t) (Task_t, error)
 }
 
 type Task_t interface {

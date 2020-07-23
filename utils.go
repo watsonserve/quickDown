@@ -9,6 +9,8 @@ import (
     "strconv"
     "github.com/watsonserve/goutils"
     "github.com/watsonserve/quickDown/downloader"
+    "github.com/watsonserve/quickDown/http_downloader"
+    "github.com/watsonserve/quickDown/link_table"
 )
 
 func help() {
@@ -65,16 +67,6 @@ func getOptions() (*downloader.Options_t, error) {
         return nil, errors.New("")
     }
 
-    // cfgFile, ok := optionMap["config"]
-    // if ok {
-    //     // 创建本地文件
-    //     cfgStream, err := os.OpenFile(cfgFile, os.O_RDWR, 0666)
-    //     if nil != err {
-    //         fmt.Fprintf(os.Stderr, "Read Config file: %s\n", err.Error())
-    //     }
-    //     cfgStream
-    // }
-
     // block
     var block int64 = 1
     strBlock, ok := optionMap["block"]
@@ -95,9 +87,15 @@ func getOptions() (*downloader.Options_t, error) {
         }
     }
 
-    // url
-    if 1 != len(urls) {
-        return nil, errors.New("Error download url")
+    // 如果没有指定配置文件才使用命令行url
+    cfgFile, ok := optionMap["config"]
+    rawUrl := ""
+    if !ok {
+        // url
+        if 1 != len(urls) {
+            return nil, errors.New("Error download url")
+        }
+        rawUrl = urls[0]
     }
 
     return &downloader.Options_t {
@@ -105,7 +103,8 @@ func getOptions() (*downloader.Options_t, error) {
         Block: block,
         OutPath: optionMap["out"],
         OutFile: optionMap["output"],
-        RawUrl: urls[0],
+        RawUrl: rawUrl,
+        ConfigFile: cfgFile,
     }, nil
 }
 
@@ -141,4 +140,41 @@ func parseResource(options *downloader.Options_t) (string, error) {
         return "", errors.New("ERROR unsuppored protocol " + uri.Scheme)
     }
     return "", errors.New("ERROR unknow")
+}
+
+// 创建下载任务
+func create(proto string, options *downloader.Options_t) (downloader.Task_t, error) {
+    var subject downloader.Subject_t
+    var store *downloader.Store_t = nil
+    var linker []link_table.Line_t
+    var err error
+
+    // 创建下载任务
+    switch proto {
+    case "http":
+        subject, err = http_downloader.New(options)
+    // case "ftp":
+    // case "p2p":
+    default:
+        return nil, errors.New("ERROR unsuppored protocol " + proto)
+    }
+    if nil != err {
+        return nil, err
+    }
+    // 如果存在配置文件，读取之
+    if "" != options.ConfigFile {
+        store, linker, err = downloader.Resume(options.ConfigFile)
+    }
+    // 没有配置则拉取元信息
+    if nil == store {
+        fmt.Printf("meta loading...\r\n")
+        meta := subject.GetMeta()
+        store, err = downloader.CreateStore(meta)
+        // debug
+        fmt.Printf("%s\nblock: %d\nthread: %d\r\n", store.FileInfo, meta.Block, meta.SgmTrd)
+    }
+    if nil != err {
+        return nil, err
+    }
+    return subject.CreateTask(store, linker)
 }

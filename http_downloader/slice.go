@@ -2,7 +2,7 @@ package http_downloader
 
 import (
     "fmt"
-    "github.com/watsonserve/quickDown/data_struct"
+    "github.com/watsonserve/quickDown/link_table"
     "os"
     "time"
 )
@@ -21,10 +21,10 @@ type BlockSlice_t struct {
     block         int64
     doneSeek      int64
     startTime     int64
-    completedLink *data_struct.TaskLink
+    completedLink *link_table.TaskLink
 }
 /**
- * 分片
+ * 计算分片计划
  * @params {int64} 总大小
  * @params {int}   线程数
  * @params {int64} 块大小
@@ -84,14 +84,14 @@ func GetBlockSlice(size int64, intTrd int, block int64) (int64, int) {
     return block, int(trd)
 }
 
-func NewBlockSlice(size int64, trd int, block int64) *BlockSlice_t {
+func NewBlockSlice(size int64, trd int, block int64, linker []link_table.Line_t) *BlockSlice_t {
     return &BlockSlice_t {
         size:          size,
         block:         block,
         sgmTrd:        trd,
         doneSeek:      0,
         startTime:     time.Now().Unix(),
-        completedLink: data_struct.NewList(nil),
+        completedLink: link_table.NewList(linker),
     }
 }
 
@@ -110,10 +110,14 @@ func (this *BlockSlice_t) Cut(start int64) *Range_t {
     }
 }
 
+// cut的别名
 func (this *BlockSlice_t) Pice() *Range_t {
     return this.Cut(this.doneSeek)
 }
 
+/**
+ * 挂载到完成链表
+ */
 func (this *BlockSlice_t) Fill(ranger *Range_t) bool {
     this.doneSeek += this.block
     this.completedLink.Mount(ranger.Start, ranger.End)
@@ -128,14 +132,17 @@ func (this *BlockSlice_t) Fill(ranger *Range_t) bool {
 }
 
 /**
- * 非线程安全
+ * 将完成链表输出一份数组格式的快照（非线程安全）
  */
-func (this *BlockSlice_t) Check() []data_struct.Line_t {
+func (this *BlockSlice_t) Check() []link_table.Line_t {
     return this.completedLink.ToArray()
 }
 
 /**
  * 统计
+ * @param startTime 开始时间
+ * @param doneSeek 已完成数据量
+ * @param size 总体大小
  */
 func statistic(startTime int64, doneSeek int64, size int64) (float32, float32, string, int) {
     var unit_p byte

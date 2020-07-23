@@ -5,9 +5,8 @@ package main
 import (
     //	"C"
     "fmt"
-    "github.com/watsonserve/quickDown/downloader"
-    "github.com/watsonserve/quickDown/http_downloader"
     "os"
+    "github.com/watsonserve/quickDown/downloader"
 )
 
 func main() {
@@ -18,7 +17,7 @@ func main() {
         return
     }
 
-    if "" != options.OutPath {
+    if "" == options.ConfigFile && "" != options.OutPath {
         // 变更到输出目录
         err = os.Chdir(options.OutPath)
         if nil != err {
@@ -30,32 +29,9 @@ func main() {
     // filter the protocol
     proto, err := parseResource(options)
     for nil == err {
-        var subject downloader.Subject_t
-        var loader downloader.Task_t
-        var store *downloader.Store_t
-
-        // 创建下载任务
-        switch proto {
-        case "http":
-            subject, err = http_downloader.New(options)
-        // case "ftp":
-        // case "p2p":
-        default:
-            return
-        }
+        loader, create_err := create(proto, options)
         if nil != err {
-            break
-        }
-        fmt.Printf("meta loading...\r\n")
-        meta := subject.GetMeta()
-        // debug
-        fmt.Printf("{size: %d, block: %d, thread: %d}\r\n", meta.Size, meta.Block, meta.SgmTrd)
-        store, err = downloader.CreateStore(meta)
-        if nil != err {
-            break
-        }
-        loader, err = subject.CreateTask(store)
-        if nil != err {
+            err = create_err
             break
         }
 

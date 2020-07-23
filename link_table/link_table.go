@@ -1,4 +1,4 @@
-package data_struct
+package link_table
 
 /*/ #cgo CFLAGS: -O3 */
 
