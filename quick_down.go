@@ -30,7 +30,7 @@ func main() {
     proto, err := parseResource(options)
     for nil == err {
         loader, create_err := create(proto, options)
-        if nil != err {
+        if nil != create_err {
             err = create_err
             break
         }
