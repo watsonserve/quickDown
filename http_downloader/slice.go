@@ -21,7 +21,8 @@ type BlockSlice_t struct {
     block         int64
     doneSeek      int64
     startTime     int64
-    completedLink *link_table.TaskLink
+    done *link_table.TaskLink
+    todo *link_table.TaskLink
 }
 /**
  * 计算分片计划
@@ -85,13 +86,15 @@ func GetBlockSlice(size int64, intTrd int, block int64) (int64, int) {
 }
 
 func NewBlockSlice(size int64, trd int, block int64, linker []link_table.Line_t) *BlockSlice_t {
+    done := link_table.NewList(linker)
     return &BlockSlice_t {
         size:          size,
         block:         block,
         sgmTrd:        trd,
         doneSeek:      0,
         startTime:     time.Now().Unix(),
-        completedLink: link_table.NewList(linker),
+        done: done,
+        todo: done.Converse(0, size),
     }
 }
 
@@ -120,7 +123,7 @@ func (this *BlockSlice_t) Pice() *Range_t {
  */
 func (this *BlockSlice_t) Fill(ranger *Range_t) bool {
     this.doneSeek += this.block
-    this.completedLink.Mount(ranger.Start, ranger.End)
+    this.done.Mount(ranger.Start, ranger.End)
     // 统计
     progress, velocity, unit, planTime := statistic(this.startTime, this.doneSeek, this.size)
     fmt.Fprintf(
@@ -135,7 +138,7 @@ func (this *BlockSlice_t) Fill(ranger *Range_t) bool {
  * 将完成链表输出一份数组格式的快照（非线程安全）
  */
 func (this *BlockSlice_t) Check() []link_table.Line_t {
-    return this.completedLink.ToArray()
+    return this.done.ToArray()
 }
 
 /**

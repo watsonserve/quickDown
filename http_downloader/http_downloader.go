@@ -164,12 +164,12 @@ func (this *HttpTask_t) Worker(taskPipe chan *Range_t, notifyPipe chan *Range_t)
 func (this *HttpTask_t) Emit(cmd string) {
     switch cmd {
     case "check":
-        arr := this.completedLink.ToArray()
+        arr := this.done.ToArray()
         for i := 0; i < len(arr); i++ {
             fmt.Printf("{start: %d, end: %d}\n", arr[i].Start, arr[i].End)
         }
     case "quit":
-        arr := this.completedLink.ToArray()
+        arr := this.done.ToArray()
         this.store.Sync(arr)
         this.store.Close()
         os.Exit(0)
