@@ -10,7 +10,6 @@ import (
     "github.com/watsonserve/goutils"
     "github.com/watsonserve/quickDown/downloader"
     "github.com/watsonserve/quickDown/http_downloader"
-    "github.com/watsonserve/quickDown/link_table"
 )
 
 func help() {
@@ -144,37 +143,13 @@ func parseResource(options *downloader.Options_t) (string, error) {
 
 // 创建下载任务
 func create(proto string, options *downloader.Options_t) (downloader.Task_t, error) {
-    var subject downloader.Subject_t
-    var store *downloader.Store_t = nil
-    var linker []link_table.Line_t
-    var err error
-
     // 创建下载任务
     switch proto {
     case "http":
-        subject, err = http_downloader.New(options)
+        return http_downloader.New(options)
     // case "ftp":
     // case "p2p":
     default:
         return nil, errors.New("ERROR unsuppored protocol " + proto)
     }
-    if nil != err {
-        return nil, err
-    }
-    // 如果存在配置文件，读取之
-    if "" != options.ConfigFile {
-        store, linker, err = downloader.Resume(options.ConfigFile)
-    }
-    // 没有配置则拉取元信息
-    if nil == store {
-        fmt.Printf("meta loading...\r\n")
-        meta := subject.GetMeta()
-        store, err = downloader.CreateStore(meta)
-        // debug
-        fmt.Printf("%s\nblock: %d\nthread: %d\r\n", store.FileInfo, meta.Block, meta.SgmTrd)
-    }
-    if nil != err {
-        return nil, err
-    }
-    return subject.CreateTask(store, linker)
 }

@@ -4,20 +4,12 @@ import (
     "errors"
     "fmt"
     "os"
+    "strconv"
     "time"
     "github.com/watsonserve/quickDown/downloader"
     "github.com/watsonserve/quickDown/http_downloader/remote"
     "github.com/watsonserve/quickDown/link_table"
 )
-
-type HttpSuject_t struct {
-    sgmTrd       int
-    size         int64
-    block        int64
-    rawUrl       string
-    outFileName  string
-    httpResource *remote.HttpResource
-}
 
 type HttpTask_t struct {
     BlockSlice_t
@@ -25,57 +17,71 @@ type HttpTask_t struct {
     store        *downloader.Store_t
 }
 
+func resume(cfgFileName string) (*downloader.Store_t, []link_table.Line_t, int64, string, error) {
+    lines, err := downloader.ReadLineN(cfgFileName, 4)
+    if nil != err {
+        return nil, nil, 0, "", errors.New("Read Config file: " + err.Error())
+    }
+    rawUrl := lines[0]
+    outFile := lines[1]
+    size, err := strconv.ParseInt(lines[2], 10, 64)
+	if nil != err {
+		return nil, nil, 0, "", err
+    }
+    arr := downloader.Reduction(lines[3])
+    store, err := downloader.NewStore(rawUrl, size, outFile, cfgFileName)
+    return store, arr, size, outFile, err
+}
+
 /**
  * 构造函数
  */
-func New(options *downloader.Options_t) (*HttpSuject_t, error) {
+func New(options *downloader.Options_t) (downloader.Task_t, error) {
+    var store *downloader.Store_t = nil
+    var linker []link_table.Line_t = nil
+    var size int64 = 0
+    fileName := ""
+    parallelable := true
+
     // 一个远端资源对象
     httpResource, err := remote.NewHttpResource(options.RawUrl)
-    if nil == err {
-        // 读取远端资源的元数据
+    if nil != err {
+        return nil, err
+    }
+
+    // 如果存在配置文件，读取之
+    if "" != options.ConfigFile {
+        store, linker, size, fileName, err = resume(options.ConfigFile)
+    } else {
+        // 没有配置则拉取元信息
         err = httpResource.GetMeta()
+        size = httpResource.Size()
+        fileName = httpResource.Filename()
+
+        // 若没有指定文件名，自动设定文件名
+        if 0 < len(options.OutFile) || len(fileName) < 1 {
+            fileName = options.OutFile
+        }
+        store, err = downloader.NewStore(options.RawUrl, size, fileName, "")
+        parallelable = httpResource.Parallelable()
     }
     if nil != err {
         return nil, err
     }
-    size := httpResource.Size()
-    fileName := httpResource.Filename()
-    // 若没有指定文件名，自动设定文件名
-    if 0 < len(options.OutFile) || len(fileName) < 1 {
-        fileName = options.OutFile
-    }
+
     // 计算分片
     trd := 1
     block := size
-    if httpResource.Parallelable() {
+    if parallelable {
         block, trd = GetBlockSlice(size, options.SgmTrd, options.Block)
     }
+    // debug
+    fmt.Printf("%s\nblock: %d\nthread: %d\r\n", store.FileInfo, block, trd)
 
-    return &HttpSuject_t {
-        size:         size,
-        sgmTrd:       trd,
-        block:        block,
-        outFileName:  fileName,
-        rawUrl:       options.RawUrl,
-        httpResource: httpResource,
-    }, nil
-}
-
-func (this *HttpSuject_t) GetMeta() *downloader.Meta_t {
-    return &downloader.Meta_t {
-        Size:    this.size,
-        SgmTrd:  this.sgmTrd,
-        Block:   this.block,
-        OutFile: this.outFileName,
-        RawUrl:  this.rawUrl,
-    }
-}
-
-func (this *HttpSuject_t) CreateTask(store *downloader.Store_t, linker []link_table.Line_t) (downloader.Task_t, error) {
     // 一个下载器实例
     return &HttpTask_t {
-        BlockSlice_t: *NewBlockSlice(this.size, this.sgmTrd, this.block, linker),
-        httpResource: this.httpResource,
+        BlockSlice_t: *NewBlockSlice(size, trd, block, linker),
+        httpResource: httpResource,
         store:        store,
     }, nil
 }
@@ -119,14 +125,12 @@ func (this *HttpTask_t) Download() error {
         if nil != ranger.Err {
             fmt.Fprintf(os.Stderr, "Error in worker: range: %d-%d\n%s", ranger.Start, ranger.End, ranger.Err.Error())
             // TODO
-            continue
+        } else {
+            this.Fill(ranger)
         }
-        id++
         foo := this.Cut(offset)
-        if this.Fill(ranger) {
-            foo = nil
-        }
         if nil != foo {
+            id++
             foo.Id = id
             offset = foo.End
         }

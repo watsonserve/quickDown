@@ -37,40 +37,25 @@ type Store_t struct {
     cfgStream *os.File
 }
 
-func newStore(fileInfo string, outFile string, cfgFileName string) (*Store_t, error) {
+func NewStore(rawUrl string, size int64, outFile string, cfgFileName string) (*Store_t, error) {
     // 创建本地文件
     outStream, err := os.OpenFile(outFile, os.O_WRONLY|os.O_CREATE, 0666)
     if nil != err {
         return nil, err
     }
+    if "" == cfgFileName {
+        cfgFileName = outFile + ".qdt"
+    }
     cfgStream, err := os.OpenFile(cfgFileName, os.O_WRONLY|os.O_CREATE, 0666)
     if nil != err {
         return nil, err
     }
+    fileInfo := fmt.Sprintf("%s\n%s\n%d\n", rawUrl, outFile, size)
     return &Store_t {
         FileInfo:  fileInfo,
         outStream: outStream,
         cfgStream: cfgStream,
     }, nil
-}
-
-func Resume(cfgFileName string) (*Store_t, []link_table.Line_t, error) {
-    lines, err := ReadLineN(cfgFileName, 4)
-    if nil != err {
-        return nil, nil, errors.New("Read Config file: " + err.Error())
-    }
-    rawUrl := lines[0]
-    outFile := lines[1]
-    size := lines[2]
-    arr := Reduction(lines[3])
-    fileInfo := fmt.Sprintf("%s\n%s\n%s\n", rawUrl, outFile, size)
-    store, err := newStore(fileInfo, outFile, cfgFileName)
-    return store, arr, err
-}
-
-func CreateStore(meta *Meta_t) (*Store_t, error) {
-    fileInfo := fmt.Sprintf("%s\n%s\n%d\n", meta.RawUrl, meta.OutFile, meta.Size)
-    return newStore(fileInfo, meta.OutFile, meta.OutFile + ".qdt")
 }
 
 /**
