@@ -90,7 +90,6 @@ func New(options *downloader.Options_t) (downloader.Task_t, error) {
  * 生产者
  */
 func (this *HttpTask_t) Download() error {
-    offset := int64(0)
     id := int64(0)
     if this.size < 1 {
         return errors.New("unknow origin file size")
@@ -100,13 +99,12 @@ func (this *HttpTask_t) Download() error {
     fmt.Fprintf(os.Stderr, ".")
     for ; id < int64(this.sgmTrd); id++ {
         // 入队
-        foo := this.Cut(offset)
+        foo := this.Pice()
         if nil == foo {
             break
         }
         foo.Id = id
         pool.Push(foo)
-        offset = foo.End
     }
 
     fmt.Fprintf(os.Stderr, ".\n")
@@ -121,18 +119,11 @@ func (this *HttpTask_t) Download() error {
             }
             continue
         }
-        // 错误
-        if nil != ranger.Err {
-            fmt.Fprintf(os.Stderr, "Error in worker: range: %d-%d\n%s", ranger.Start, ranger.End, ranger.Err.Error())
-            // TODO
-        } else {
-            this.Fill(ranger)
-        }
-        foo := this.Cut(offset)
+        this.Fill(ranger)
+        foo := this.Pice()
         if nil != foo {
             id++
             foo.Id = id
-            offset = foo.End
         }
         pool.Push(foo)
     }

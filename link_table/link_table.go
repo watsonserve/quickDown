@@ -86,6 +86,9 @@ func NewList(arr []Line_t) *TaskLink {
 // 头查看
 func (this *TaskLink) Front() *Line_t {
     firstNode := this.header.Next
+    if nil == firstNode {
+        return nil
+    }
     return &firstNode.Line_t
 }
 

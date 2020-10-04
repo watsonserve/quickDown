@@ -19,7 +19,7 @@ type BlockSlice_t struct {
     sgmTrd        int
     size          int64
     block         int64
-    doneSeek      int64
+    pace          int64
     startTime     int64
     done *link_table.TaskLink
     todo *link_table.TaskLink
@@ -91,47 +91,52 @@ func NewBlockSlice(size int64, trd int, block int64, linker []link_table.Line_t)
         size:          size,
         block:         block,
         sgmTrd:        trd,
-        doneSeek:      0,
+        pace:          0,
         startTime:     time.Now().Unix(),
         done: done,
         todo: done.Converse(0, size),
     }
 }
 
-func (this *BlockSlice_t) Cut(start int64) *Range_t {
-    max := this.size - 1
-    if max <= start {
+func (this *BlockSlice_t) Pice() *Range_t {
+    front := this.todo.Front()
+    if nil == front {
         return nil
     }
+    start := front.Start
     end := start + this.block
-    if max < end {
-        end = max
+
+    if front.End <= end {
+        end = front.End
+        this.todo.Pop()
+    } else {
+        front.Start = end
     }
-    return &Range_t{
+    return &Range_t {
         Start: start,
         End:   end,
     }
 }
 
-// cut的别名
-func (this *BlockSlice_t) Pice() *Range_t {
-    return this.Cut(this.doneSeek)
-}
-
 /**
  * 挂载到完成链表
  */
-func (this *BlockSlice_t) Fill(ranger *Range_t) bool {
-    this.doneSeek += this.block
+func (this *BlockSlice_t) Fill(ranger *Range_t) {
+    // 错误
+    if nil != ranger.Err {
+        fmt.Fprintf(os.Stderr, "Error in worker: range: %d-%d\n%s", ranger.Start, ranger.End, ranger.Err.Error())
+        this.todo.Mount(ranger.Start, ranger.End)
+        return
+    }
     this.done.Mount(ranger.Start, ranger.End)
+    this.pace += ranger.End - ranger.Start
     // 统计
-    progress, velocity, unit, planTime := statistic(this.startTime, this.doneSeek, this.size)
+    progress, velocity, unit, planTime := statistic(this.startTime, this.pace, this.size)
     fmt.Fprintf(
         os.Stderr,
         "{\"finish\": \"%0.2f%%\", \"speed\": \"%0.2f%s/s\", \"planTime\": \"%ds\"}\n",
         progress, velocity, unit, planTime,
     )
-    return this.size < this.doneSeek
 }
 
 /**
