@@ -124,7 +124,7 @@ func (this *BlockSlice_t) Pice() *Range_t {
 func (this *BlockSlice_t) Fill(ranger *Range_t) {
     // 错误
     if nil != ranger.Err {
-        fmt.Fprintf(os.Stderr, "Error in worker: range: %d-%d\n%s", ranger.Start, ranger.End, ranger.Err.Error())
+        fmt.Fprintf(os.Stderr, "\nError in worker(range: %d-%d): %s\n", ranger.Start, ranger.End, ranger.Err.Error())
         this.todo.Mount(ranger.Start, ranger.End)
         return
     }
@@ -132,9 +132,8 @@ func (this *BlockSlice_t) Fill(ranger *Range_t) {
     this.pace += ranger.End - ranger.Start
     // 统计
     progress, velocity, unit, planTime := statistic(this.startTime, this.pace, this.size)
-    fmt.Fprintf(
-        os.Stderr,
-        "{\"finish\": \"%0.2f%%\", \"speed\": \"%0.2f%s/s\", \"planTime\": \"%ds\"}\n",
+    fmt.Printf(
+        "\r{\"finish\": \"%0.2f%%\", \"speed\": \"%0.2f%s/s\", \"planTime\": \"%ds\"}",
         progress, velocity, unit, planTime,
     )
 }

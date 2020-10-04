@@ -114,8 +114,17 @@ func getOptions() (*downloader.Options_t, error) {
  * @return error  错误
  */
 func parseResource(options *downloader.Options_t) (string, error) {
+    rawUrl := options.RawUrl
     // 解析远端资源类型
-    uri, err := url.Parse(options.RawUrl)
+    if "" == options.RawUrl && "" != options.ConfigFile {
+        lines, err := downloader.ReadLineN(options.ConfigFile, 2)
+        if nil != err {
+            return "", errors.New("ERROR config file")
+        }
+        rawUrl = lines[0]
+        options.RawUrl = rawUrl
+    }
+    uri, err := url.Parse(rawUrl)
     if nil != err {
         return "", errors.New("ERROR url")
     }

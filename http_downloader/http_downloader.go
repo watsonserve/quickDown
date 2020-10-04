@@ -161,7 +161,7 @@ func (this *HttpTask_t) Emit(cmd string) {
     case "check":
         arr := this.done.ToArray()
         for i := 0; i < len(arr); i++ {
-            fmt.Printf("{start: %d, end: %d}\n", arr[i].Start, arr[i].End)
+            fmt.Printf("\n{start: %d, end: %d}\n", arr[i].Start, arr[i].End)
         }
     case "quit":
         arr := this.done.ToArray()
