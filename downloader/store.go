@@ -22,6 +22,7 @@ func ReadLineN(filename string, n int) ([]string, error) {
 }
 
 func Reduction(txt string) []link_table.Line_t {
+    txt = strings.Trim(txt, "\n")
     lines := strings.Split(txt, "\n")
     length := len(lines)
     arr := make([]link_table.Line_t, length)

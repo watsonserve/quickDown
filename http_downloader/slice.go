@@ -87,6 +87,8 @@ func GetBlockSlice(size int64, intTrd int, block int64) (int64, int) {
 
 func NewBlockSlice(size int64, trd int, block int64, linker []link_table.Line_t) *BlockSlice_t {
     done := link_table.NewList(linker)
+    todo := done.Converse(0, size)
+
     return &BlockSlice_t {
         size:          size,
         block:         block,
@@ -94,7 +96,7 @@ func NewBlockSlice(size int64, trd int, block int64, linker []link_table.Line_t)
         pace:          0,
         startTime:     time.Now().Unix(),
         done: done,
-        todo: done.Converse(0, size),
+        todo: todo,
     }
 }
 
