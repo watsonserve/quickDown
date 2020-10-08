@@ -4,6 +4,7 @@ import (
     "fmt"
     "github.com/watsonserve/quickDown/link_table"
     "os"
+    "strings"
     "time"
 )
 
@@ -23,6 +24,7 @@ type BlockSlice_t struct {
     startTime     int64
     done *link_table.TaskLink
     todo *link_table.TaskLink
+    prevLen       int
 }
 /**
  * 计算分片计划
@@ -95,8 +97,9 @@ func NewBlockSlice(size int64, trd int, block int64, linker []link_table.Line_t)
         sgmTrd:        trd,
         pace:          0,
         startTime:     time.Now().Unix(),
-        done: done,
-        todo: todo,
+        done:          done,
+        todo:          todo,
+        prevLen:       0,
     }
 }
 
@@ -134,10 +137,17 @@ func (this *BlockSlice_t) Fill(ranger *Range_t) {
     this.pace += ranger.End - ranger.Start
     // 统计
     progress, velocity, unit, planTime := statistic(this.startTime, this.pace, this.size)
-    fmt.Printf(
+    put := fmt.Sprintf(
         "\r{\"finish\": \"%0.2f%%\", \"speed\": \"%0.2f%s/s\", \"planTime\": \"%ds\"}",
         progress, velocity, unit, planTime,
     )
+    putLen := len(put)
+    delta := this.prevLen - putLen
+    if 0 < delta {
+        put += strings.Repeat(" ", delta)
+    }
+    this.prevLen = putLen
+    fmt.Printf("%s", put)
 }
 
 /**

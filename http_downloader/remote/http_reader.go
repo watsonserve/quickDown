@@ -42,7 +42,7 @@ func (this *HttpResource) NewHttpReader() (*HttpReader, error) {
     req.Header.Add("Connection", "keep-alive")
 
     return &HttpReader{
-        client:    NewHttpClient(this.tlsClientConfig),
+        client:  NewHttpClient(this.tlsClientConfig),
         req:     req,
         headers: &req.Header,
     }, nil
