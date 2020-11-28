@@ -2,10 +2,10 @@ package downloader
 
 import (
     "io"
-	"os"
-	"os/signal"
-	"syscall"
-	"github.com/watsonserve/quickDown/myio"
+    "os"
+    "os/signal"
+    "syscall"
+    "github.com/watsonserve/quickDown/myio"
     "github.com/watsonserve/quickDown/link_table"
 )
 
@@ -39,9 +39,9 @@ type Task_t interface {
 }
 
 func ListenSign(this Task_t) {
-	signalChannel := make(chan os.Signal, 1)
-	//监听所有信号
-	signal.Notify(
+    signalChannel := make(chan os.Signal, 1)
+    //监听所有信号
+    signal.Notify(
         signalChannel,
         syscall.SIGHUP,
         syscall.SIGINT, // ctrl + C
@@ -50,9 +50,9 @@ func ListenSign(this Task_t) {
         // syscall.SIGTSTP,
         // syscall.SIGUSR1,
         // syscall.SIGUSR2,
-	)
+    )
 
-	for {
+    for {
         sign := <- signalChannel
         cmd := ""
         switch sign {
@@ -68,18 +68,19 @@ func ListenSign(this Task_t) {
             cmd = ""
         }
         this.Emit(cmd)
-	}
+    }
 }
 
 func ListenCmd(this Task_t, inStream io.Reader) {
-	// 监听标准输入流
-	readStream := myio.InitReadStream(inStream)
-	for {
+    // 监听标准输入流
+    readStream := myio.InitReadStream(inStream)
+    for {
         command, err := readStream.ReadLine()
         if nil != err {
             this.EmitError(err)
             return
         }
         this.Emit(command)
-	}
+    }
 }
+

@@ -117,7 +117,7 @@ func parseResource(options *downloader.Options_t) (string, error) {
     rawUrl := options.RawUrl
     // 解析远端资源类型
     if "" == options.RawUrl && "" != options.ConfigFile {
-        lines, err := downloader.ReadLineN(options.ConfigFile, 2)
+        lines, err := goutils.ReadLineN(options.ConfigFile, 2)
         if nil != err {
             return "", errors.New("ERROR config file")
         }
@@ -162,3 +162,4 @@ func create(proto string, options *downloader.Options_t) (downloader.Task_t, err
         return nil, errors.New("ERROR unsuppored protocol " + proto)
     }
 }
+

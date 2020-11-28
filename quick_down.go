@@ -46,6 +46,8 @@ func main() {
         }
         return
     }
+
     fmt.Fprintf(os.Stderr, "ERROR: %s\n", err.Error())
     return
 }
+

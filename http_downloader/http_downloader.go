@@ -6,6 +6,7 @@ import (
     "os"
     "strconv"
     "time"
+    "github.com/watsonserve/goutils"
     "github.com/watsonserve/quickDown/downloader"
     "github.com/watsonserve/quickDown/http_downloader/remote"
     "github.com/watsonserve/quickDown/link_table"
@@ -18,7 +19,7 @@ type HttpTask_t struct {
 }
 
 func resume(cfgFileName string) (*downloader.Store_t, []link_table.Line_t, int64, string, error) {
-    lines, err := downloader.ReadLineN(cfgFileName, 4)
+    lines, err := goutils.ReadLineN(cfgFileName, 4)
     if nil != err {
         return nil, nil, 0, "", errors.New("Read Config file: " + err.Error())
     }

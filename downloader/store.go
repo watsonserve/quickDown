@@ -10,17 +10,6 @@ import (
     "github.com/watsonserve/quickDown/link_table"
 )
 
-// 从一个文件中读取前n行和后面所有内容
-func ReadLineN(filename string, n int) ([]string, error) {
-    content, err := ioutil.ReadFile(filename)
-    if nil != err {
-        return make([]string, 0), err
-    }
-
-    lines := strings.SplitN(string(content), "\n", n)
-    return lines, nil
-}
-
 func Reduction(txt string) []link_table.Line_t {
     txt = strings.Trim(txt, "\n")
     lines := strings.Split(txt, "\n")
