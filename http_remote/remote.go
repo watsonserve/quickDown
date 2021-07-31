@@ -1,10 +1,9 @@
-package remote
+package http_remote
 
 import (
-    "crypto/tls"
     "errors"
     "net/http"
-	"net/url"
+    "net/url"
     "path"
     "strconv"
     "strings"
@@ -15,57 +14,47 @@ type HttpResource struct {
     size            int64
     filename        string
     rawUrl          string
-    tlsClientConfig *tls.Config
 }
 
 /**
  * 构造函数
  */
 func NewHttpResource(rawUrl string) (*HttpResource, error) {
-	var err error
-	for {
+    var err error
+    for {
         var uri *url.URL
-		uri, err = url.Parse(rawUrl)
-		if nil != err {
-			break
-		}
-
-        use_tls := false
-        if "https" == uri.Scheme {
-            use_tls = true
+        uri, err = url.Parse(rawUrl)
+        if nil != err {
+            break
         }
 
         // 默认使用url的文件名
-		this := &HttpResource{
+        this := &HttpResource{
             filename:  path.Base(uri.Path),
             rawUrl:    rawUrl,
-            tlsClientConfig: &tls.Config {
-                InsecureSkipVerify: use_tls,
-                ServerName: uri.Host,
-            },
-		}
-		return this, nil
-	}
-	return nil, err
+        }
+        return this, nil
+    }
+    return nil, err
 }
 
 
 func (this *HttpResource) loadMeta() (*http.Header, error) {
     cli, err := this.NewHttpReader()
     if nil != err {
-		return nil, err
+        return nil, err
     }
     resp, err := cli.client.Head(this.rawUrl)
-	if nil != err {
-		return nil, err
+    if nil != err {
+        return nil, err
     }
     resp.Body.Close()
-	// 应答错误
-	if 200 != resp.StatusCode {
-		return nil, errors.New(resp.Status)
-	}
+    // 应答错误
+    if 200 != resp.StatusCode {
+        return nil, errors.New(resp.Status)
+    }
 
-	return &resp.Header, nil
+    return &resp.Header, nil
 }
 
 /**
@@ -78,14 +67,14 @@ func (this *HttpResource) GetMeta() error {
         return err
     }
 
-	contentLength := header.Get("Content-Length")
-	this.size, err = strconv.ParseInt(contentLength, 10, 64)
-	if nil != err {
-		return err
+    contentLength := header.Get("Content-Length")
+    this.size, err = strconv.ParseInt(contentLength, 10, 64)
+    if nil != err {
+        return err
     }
 
-	acceptRanges := header.Get("Accept-Ranges")
-	this.parallelable = "" != acceptRanges && "none" != acceptRanges
+    acceptRanges := header.Get("Accept-Ranges")
+    this.parallelable = "" != acceptRanges && "none" != acceptRanges
 
     // 优先使用应答头里的文件名
     filename := header.Get("Content-Disposition")
@@ -104,7 +93,7 @@ func (this *HttpResource) GetMeta() error {
         this.filename = filename
     }
 
-	return nil
+    return nil
 }
 
 func (this *HttpResource) Filename() string {
@@ -117,4 +106,8 @@ func (this *HttpResource) Size() int64 {
 
 func (this *HttpResource) Parallelable() bool {
     return this.parallelable
+}
+
+func (this *HttpResource) NewHttpReader() (*HttpReader, error) {
+    return newHttpReader(this.rawUrl)
 }

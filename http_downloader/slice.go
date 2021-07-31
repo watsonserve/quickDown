@@ -2,10 +2,9 @@ package http_downloader
 
 import (
     "fmt"
-    "github.com/watsonserve/quickDown/link_table"
     "os"
-    "strings"
     "time"
+    "github.com/watsonserve/quickDown/link_table"
 )
 
 const MAX_THREAD_COUNT int64 = 256
@@ -24,7 +23,6 @@ type BlockSlice_t struct {
     startTime     int64
     done *link_table.TaskLink
     todo *link_table.TaskLink
-    prevLen       int
 }
 
 /**
@@ -100,7 +98,6 @@ func NewBlockSlice(size int64, trd int, block int64, linker []link_table.Line_t)
         startTime:     time.Now().Unix(),
         done:          done,
         todo:          todo,
-        prevLen:       0,
     }
 }
 
@@ -136,19 +133,6 @@ func (this *BlockSlice_t) Fill(ranger *Range_t) {
     }
     this.done.Mount(ranger.Start, ranger.End)
     this.pace += ranger.End - ranger.Start
-    // 统计
-    progress, velocity, unit, planTime := statistic(this.startTime, this.pace, this.size)
-    put := fmt.Sprintf(
-        "\r{\"finish\": \"%0.2f%%\", \"speed\": \"%0.2f%s/s\", \"planTime\": \"%ds\"}",
-        progress, velocity, unit, planTime,
-    )
-    putLen := len(put)
-    delta := this.prevLen - putLen
-    if 0 < delta {
-        put += strings.Repeat(" ", delta)
-    }
-    this.prevLen = putLen
-    fmt.Printf("%s", put)
 }
 
 /**
@@ -156,33 +140,4 @@ func (this *BlockSlice_t) Fill(ranger *Range_t) {
  */
 func (this *BlockSlice_t) Check() []link_table.Line_t {
     return this.done.ToArray()
-}
-
-/**
- * 统计
- * @param startTime 开始时间
- * @param doneSeek 已完成数据量
- * @param size 总体大小
- */
-func statistic(startTime int64, doneSeek int64, size int64) (float32, float32, string, int) {
-    var unit_p byte
-    progress := float32(100 * float64(doneSeek) / float64(size))
-    if 100 < progress {
-        progress = 100
-    }
-    delta := float64(time.Now().Unix() - startTime)
-    if delta < 0.1 {
-        delta = 0.1
-    }
-    velocity := float32(float64(doneSeek) / delta)
-
-    planTime := -1
-    if 0 != doneSeek {
-        planTime = int((size - doneSeek) / int64(velocity))
-    }
-
-    for unit_p = 0; 1024 < velocity; unit_p++ {
-        velocity /= 1024
-    }
-    return progress, velocity, units[unit_p], planTime
 }

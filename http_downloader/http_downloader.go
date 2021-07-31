@@ -8,13 +8,14 @@ import (
     "time"
     "github.com/watsonserve/goutils"
     "github.com/watsonserve/quickDown/downloader"
-    "github.com/watsonserve/quickDown/http_downloader/remote"
+    "github.com/watsonserve/quickDown/http_remote"
     "github.com/watsonserve/quickDown/link_table"
 )
 
 type HttpTask_t struct {
     BlockSlice_t
-    httpResource *remote.HttpResource
+    Outer
+    httpResource *http_remote.HttpResource
     store        *downloader.Store_t
 }
 
@@ -45,7 +46,7 @@ func New(options *downloader.Options_t) (downloader.Task_t, error) {
     parallelable := true
 
     // 一个远端资源对象
-    httpResource, err := remote.NewHttpResource(options.RawUrl)
+    httpResource, err := http_remote.NewHttpResource(options.RawUrl)
     if nil != err {
         return nil, err
     }
@@ -82,6 +83,9 @@ func New(options *downloader.Options_t) (downloader.Task_t, error) {
     // 一个下载器实例
     return &HttpTask_t {
         BlockSlice_t: *NewBlockSlice(size, trd, block, linker),
+        Outer: Outer {
+            preLen: 0,
+        },
         httpResource: httpResource,
         store:        store,
     }, nil
@@ -115,12 +119,10 @@ func (this *HttpTask_t) Download() error {
         // 线程退出
         if nil == ranger {
             this.sgmTrd--
-            if 0 == this.sgmTrd {
-                break
-            }
             continue
         }
         this.Fill(ranger)
+        this.Output(this.startTime, this.pace, this.size, this.sgmTrd)
         foo := this.Pice()
         if nil != foo {
             id++
