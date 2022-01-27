@@ -9,7 +9,6 @@ import (
     "github.com/watsonserve/goutils"
     "github.com/watsonserve/quickDown/downloader"
     "github.com/watsonserve/quickDown/http_remote"
-    "github.com/watsonserve/quickDown/link_table"
 )
 
 type HttpTask_t struct {
@@ -19,7 +18,7 @@ type HttpTask_t struct {
     store        *downloader.Store_t
 }
 
-func resume(cfgFileName string) (*downloader.Store_t, []link_table.Line_t, int64, string, error) {
+func resume(cfgFileName string) (*downloader.Store_t, []goutils.Range_t, int64, string, error) {
     lines, err := goutils.ReadLineN(cfgFileName, 4)
     if nil != err {
         return nil, nil, 0, "", errors.New("Read Config file: " + err.Error())
@@ -40,7 +39,7 @@ func resume(cfgFileName string) (*downloader.Store_t, []link_table.Line_t, int64
  */
 func New(options *downloader.Options_t) (downloader.Task_t, error) {
     var store *downloader.Store_t = nil
-    var linker []link_table.Line_t = nil
+    var linker []goutils.Range_t = nil
     var size int64 = 0
     fileName := ""
     parallelable := true

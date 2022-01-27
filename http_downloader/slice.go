@@ -4,7 +4,7 @@ import (
     "fmt"
     "os"
     "time"
-    "github.com/watsonserve/quickDown/link_table"
+    "github.com/watsonserve/goutils"
 )
 
 const MAX_THREAD_COUNT int64 = 256
@@ -21,8 +21,8 @@ type BlockSlice_t struct {
     block         int64
     pace          int64
     startTime     int64
-    done *link_table.TaskLink
-    todo *link_table.TaskLink
+    done *goutils.RangeLink_t
+    todo *goutils.RangeLink_t
 }
 
 /**
@@ -86,8 +86,8 @@ func GetBlockSlice(size int64, intTrd int, block int64) (int64, int) {
     return block, int(trd)
 }
 
-func NewBlockSlice(size int64, trd int, block int64, linker []link_table.Line_t) *BlockSlice_t {
-    done := link_table.NewList(linker)
+func NewBlockSlice(size int64, trd int, block int64, linker []goutils.Range_t) *BlockSlice_t {
+    done := goutils.NewRangeLink(linker)
     todo := done.Converse(0, size)
 
     return &BlockSlice_t {
@@ -138,6 +138,6 @@ func (this *BlockSlice_t) Fill(ranger *Range_t) {
 /**
  * 将完成链表输出一份数组格式的快照（非线程安全）
  */
-func (this *BlockSlice_t) Check() []link_table.Line_t {
+func (this *BlockSlice_t) Check() []goutils.Range_t {
     return this.done.ToArray()
 }

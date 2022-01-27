@@ -7,14 +7,14 @@ import (
     "io/ioutil"
     "os"
     "strings"
-    "github.com/watsonserve/quickDown/link_table"
+    "github.com/watsonserve/goutils"
 )
 
-func Reduction(txt string) []link_table.Line_t {
+func Reduction(txt string) []goutils.Range_t {
     txt = strings.Trim(txt, "\n")
     lines := strings.Split(txt, "\n")
     length := len(lines)
-    arr := make([]link_table.Line_t, length)
+    arr := make([]goutils.Range_t, length)
     for i := 0; i < length; i++ {
         fmt.Sscanf(lines[i], "{start: %d, end: %d}", &arr[i].Start, &arr[i].End)
     }
@@ -68,7 +68,7 @@ func (this *Store_t) SendFileAt(rs io.ReadCloser, w_off int64) error {
 	return nil
 }
 
-func (this *Store_t) Sync(arr []link_table.Line_t) {
+func (this *Store_t) Sync(arr []goutils.Range_t) {
     this.cfgStream.Truncate(0)
     fmt.Fprintf(this.cfgStream, "%s\n", this.FileInfo)
     for i := 0; i < len(arr); i++ {

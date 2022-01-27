@@ -162,4 +162,3 @@ func create(proto string, options *downloader.Options_t) (downloader.Task_t, err
         return nil, errors.New("ERROR unsuppored protocol " + proto)
     }
 }
-

@@ -6,7 +6,7 @@ import (
     "os/signal"
     "syscall"
     "github.com/watsonserve/quickDown/myio"
-    "github.com/watsonserve/quickDown/link_table"
+    "github.com/watsonserve/goutils"
 )
 
 type Options_t struct {
@@ -28,7 +28,7 @@ type Meta_t struct {
 
 type Subject_t interface {
     GetMeta() *Meta_t
-    CreateTask(store *Store_t, linker []link_table.Line_t) (Task_t, error)
+    CreateTask(store *Store_t, linker []goutils.Range_t) (Task_t, error)
 }
 
 type Task_t interface {
