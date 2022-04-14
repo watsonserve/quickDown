@@ -1,110 +1,111 @@
 package main
 
 import (
-    "encoding/base64"
-    "errors"
-    "fmt"
-    "net/url"
-    "os"
-    "strconv"
-    "github.com/watsonserve/goutils"
-    "github.com/watsonserve/quickDown/downloader"
-    "github.com/watsonserve/quickDown/http_downloader"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"net/url"
+	"os"
+	"strconv"
+
+	"github.com/watsonserve/goutils"
+	"github.com/watsonserve/quickDown/downloader"
+	"github.com/watsonserve/quickDown/http_downloader"
 )
 
 func help() {
-    fmt.Fprintln(os.Stderr, "version 0.2.0 License GPL2.0")
-    fmt.Fprintf(os.Stderr, "(C) watsonserve.com made by James Watson\n\n")
-    fmt.Fprintln(os.Stderr, "use [-b blockSize|-t sumOfThread|-o outputFile|--stdout] url")
-    fmt.Fprintln(os.Stderr, "     -c, --config   use a config file")
-    fmt.Fprintln(os.Stderr, "     -b, --block    block Size, will be integer multiples of 64K(max: 16). default is 1 multiple")
-    fmt.Fprintln(os.Stderr, "     -t, --thread   sum Of Thread. default is 1, max: 256")
-    fmt.Fprintln(os.Stderr, "     -O, --out      output path")
-    fmt.Fprintln(os.Stderr, "     -o, --output   output file name (auto setted)")
-    fmt.Fprintf(os.Stderr,  "     -h, --help     show this help information\n\n")
+	fmt.Fprintln(os.Stderr, "version 0.2.0 License GPL2.0")
+	fmt.Fprintf(os.Stderr, "(C) watsonserve.com made by James Watson\n\n")
+	fmt.Fprintln(os.Stderr, "use [-b blockSize|-t sumOfThread|-o outputFile|--stdout] url")
+	fmt.Fprintln(os.Stderr, "     -c, --config   use a config file")
+	fmt.Fprintln(os.Stderr, "     -b, --block    block Size, will be integer multiples of 64K(max: 16). default is 1 multiple")
+	fmt.Fprintln(os.Stderr, "     -t, --thread   sum Of Thread. default is 1, max: 256")
+	fmt.Fprintln(os.Stderr, "     -O, --out      output path")
+	fmt.Fprintln(os.Stderr, "     -o, --output   output file name (auto setted)")
+	fmt.Fprintf(os.Stderr, "     -h, --help     show this help information\n\n")
 }
 
 func getOptions() (*downloader.Options_t, error) {
-    var err error
-    // 获取命令行参数
-    allOptions := []goutils.Option{
-        {
-            Opt: 'b',
-            Option: "block",
-            HasParams: true,
-        },
-        {
-            Opt: 'c',
-            Option: "config",
-            HasParams: true,
-        },
-        {
-            Opt: 't',
-            Option: "thread",
-            HasParams: true,
-        },
-        {
-            Opt: 'O',
-            Option: "out",
-            HasParams: true,
-        },
-        {
-            Opt: 'o',
-            Option: "output",
-            HasParams: true,
-        },
-        {
-            Opt: 'h',
-            Option: "help",
-            HasParams: false,
-        },
-    }
-    optionMap, urls := goutils.GetOptions(allOptions)
+	var err error
+	// 获取命令行参数
+	allOptions := []goutils.Option{
+		{
+			Opt:       'b',
+			Option:    "block",
+			HasParams: true,
+		},
+		{
+			Opt:       'c',
+			Option:    "config",
+			HasParams: true,
+		},
+		{
+			Opt:       't',
+			Option:    "thread",
+			HasParams: true,
+		},
+		{
+			Opt:       'O',
+			Option:    "out",
+			HasParams: true,
+		},
+		{
+			Opt:       'o',
+			Option:    "output",
+			HasParams: true,
+		},
+		{
+			Opt:       'h',
+			Option:    "help",
+			HasParams: false,
+		},
+	}
+	optionMap, urls := goutils.GetOptions(allOptions)
 
-    _, ok := optionMap["help"]
-    if ok {
-        return nil, errors.New("")
-    }
+	_, ok := optionMap["help"]
+	if ok {
+		return nil, errors.New("")
+	}
 
-    // block
-    var block int64 = 1
-    strBlock, ok := optionMap["block"]
-    if ok {
-        block, err = strconv.ParseInt(strBlock, 0, 0)
-        if nil != err {
-            return nil, errors.New("Error block should be a intger")
-        }
-    }
+	// block
+	var block int64 = 1
+	strBlock, ok := optionMap["block"]
+	if ok {
+		block, err = strconv.ParseInt(strBlock, 0, 0)
+		if nil != err {
+			return nil, errors.New("Error block should be a intger")
+		}
+	}
 
-    // thread
-    var thread int64 = 1
-    strThread, ok := optionMap["thread"]
-    if ok {
-        thread, err = strconv.ParseInt(strThread, 0, 0)
-        if nil != err {
-            return nil, errors.New("Error thread should be a intger")
-        }
-    }
+	// thread
+	var thread int64 = 1
+	strThread, ok := optionMap["thread"]
+	if ok {
+		thread, err = strconv.ParseInt(strThread, 0, 0)
+		if nil != err {
+			return nil, errors.New("Error thread should be a intger")
+		}
+	}
 
-    // 如果没有指定配置文件才使用命令行url
-    cfgFile, ok := optionMap["config"]
-    rawUrl := ""
-    if !ok {
-        // url
-        if 1 != len(urls) {
-            return nil, errors.New("Error download url")
-        }
-        rawUrl = urls[0]
-    }
+	// 如果没有指定配置文件才使用命令行url
+	cfgFile, ok := optionMap["config"]
+	rawUrl := ""
+	if !ok {
+		// url
+		if 1 != len(urls) {
+			return nil, errors.New("Error download url")
+		}
+		rawUrl = urls[0]
+	}
 
-    return &downloader.Options_t {
-        SgmTrd: int(thread),
-        Block: block,
-        OutPath: optionMap["out"],
-        OutFile: optionMap["output"],
-        RawUrl: rawUrl,
-        ConfigFile: cfgFile,
-    }, nil
+	return &downloader.Options_t{
+		SgmTrd:     int(thread),
+		Block:      block,
+		OutPath:    optionMap["out"],
+		OutFile:    optionMap["output"],
+		RawUrl:     rawUrl,
+		ConfigFile: cfgFile,
+	}, nil
 }
 
 /**
@@ -114,51 +115,51 @@ func getOptions() (*downloader.Options_t, error) {
  * @return error  错误
  */
 func parseResource(options *downloader.Options_t) (string, error) {
-    rawUrl := options.RawUrl
-    // 解析远端资源类型
-    if "" == options.RawUrl && "" != options.ConfigFile {
-        lines, err := goutils.ReadLineN(options.ConfigFile, 2)
-        if nil != err {
-            return "", errors.New("ERROR config file")
-        }
-        rawUrl = lines[0]
-        options.RawUrl = rawUrl
-    }
-    uri, err := url.Parse(rawUrl)
-    if nil != err {
-        return "", errors.New("ERROR url")
-    }
-    // filter the protocol
-    switch uri.Scheme {
-    case "thunder":
-        data, err := base64.StdEncoding.DecodeString(uri.Host)
-        if nil != err {
-            return "", err
-        }
-        length := len(data)
-        if 4 < length && "AA" == string(data[0:2]) && "ZZ" == string(data[length - 2 : length]) {
-            options.RawUrl = string(data[2:length-2])
-            return parseResource(options)
-        }
-    case "http":
-        fallthrough
-    case "https":
-        return "http", nil
-    default:
-        return "", errors.New("ERROR unsuppored protocol " + uri.Scheme)
-    }
-    return "", errors.New("ERROR unknow")
+	rawUrl := options.RawUrl
+	// 解析远端资源类型
+	if "" == options.RawUrl && "" != options.ConfigFile {
+		lines, err := goutils.ReadLineN(options.ConfigFile, 2)
+		if nil != err {
+			return "", errors.New("ERROR config file")
+		}
+		rawUrl = lines[0]
+		options.RawUrl = rawUrl
+	}
+	uri, err := url.Parse(rawUrl)
+	if nil != err {
+		return "", errors.New("ERROR url")
+	}
+	// filter the protocol
+	switch uri.Scheme {
+	case "thunder":
+		data, err := base64.StdEncoding.DecodeString(uri.Host)
+		if nil != err {
+			return "", err
+		}
+		length := len(data)
+		if 4 < length && "AA" == string(data[0:2]) && "ZZ" == string(data[length-2:length]) {
+			options.RawUrl = string(data[2 : length-2])
+			return parseResource(options)
+		}
+	case "http":
+		fallthrough
+	case "https":
+		return "http", nil
+	default:
+		return "", errors.New("ERROR unsuppored protocol " + uri.Scheme)
+	}
+	return "", errors.New("ERROR unknow")
 }
 
 // 创建下载任务
 func create(proto string, options *downloader.Options_t) (downloader.Task_t, error) {
-    // 创建下载任务
-    switch proto {
-    case "http":
-        return http_downloader.New(options)
-    // case "ftp":
-    // case "p2p":
-    default:
-        return nil, errors.New("ERROR unsuppored protocol " + proto)
-    }
+	// 创建下载任务
+	switch proto {
+	case "http":
+		return http_downloader.New(options)
+	// case "ftp":
+	// case "p2p":
+	default:
+		return nil, errors.New("ERROR unsuppored protocol " + proto)
+	}
 }

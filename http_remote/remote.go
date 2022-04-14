@@ -1,60 +1,59 @@
 package http_remote
 
 import (
-    "errors"
-    "net/http"
-    "net/url"
-    "path"
-    "strconv"
-    "strings"
+	"errors"
+	"net/http"
+	"net/url"
+	"path"
+	"strconv"
+	"strings"
 )
 
 type HttpResource struct {
-    parallelable    bool
-    size            int64
-    filename        string
-    rawUrl          string
+	parallelable bool
+	size         int64
+	filename     string
+	rawUrl       string
 }
 
 /**
  * 构造函数
  */
 func NewHttpResource(rawUrl string) (*HttpResource, error) {
-    var err error
-    for {
-        var uri *url.URL
-        uri, err = url.Parse(rawUrl)
-        if nil != err {
-            break
-        }
+	var err error
+	for {
+		var uri *url.URL
+		uri, err = url.Parse(rawUrl)
+		if nil != err {
+			break
+		}
 
-        // 默认使用url的文件名
-        this := &HttpResource{
-            filename:  path.Base(uri.Path),
-            rawUrl:    rawUrl,
-        }
-        return this, nil
-    }
-    return nil, err
+		// 默认使用url的文件名
+		this := &HttpResource{
+			filename: path.Base(uri.Path),
+			rawUrl:   rawUrl,
+		}
+		return this, nil
+	}
+	return nil, err
 }
 
-
 func (this *HttpResource) loadMeta() (*http.Header, error) {
-    cli, err := this.NewHttpReader()
-    if nil != err {
-        return nil, err
-    }
-    resp, err := cli.client.Head(this.rawUrl)
-    if nil != err {
-        return nil, err
-    }
-    resp.Body.Close()
-    // 应答错误
-    if 200 != resp.StatusCode {
-        return nil, errors.New(resp.Status)
-    }
+	cli, err := this.NewHttpReader()
+	if nil != err {
+		return nil, err
+	}
+	resp, err := cli.client.Head(this.rawUrl)
+	if nil != err {
+		return nil, err
+	}
+	resp.Body.Close()
+	// 应答错误
+	if 200 != resp.StatusCode {
+		return nil, errors.New(resp.Status)
+	}
 
-    return &resp.Header, nil
+	return &resp.Header, nil
 }
 
 /**
@@ -62,52 +61,52 @@ func (this *HttpResource) loadMeta() (*http.Header, error) {
  * @return {error}
  */
 func (this *HttpResource) GetMeta() error {
-    header, err := this.loadMeta()
-    if nil != err {
-        return err
-    }
+	header, err := this.loadMeta()
+	if nil != err {
+		return err
+	}
 
-    contentLength := header.Get("Content-Length")
-    this.size, err = strconv.ParseInt(contentLength, 10, 64)
-    if nil != err {
-        return err
-    }
+	contentLength := header.Get("Content-Length")
+	this.size, err = strconv.ParseInt(contentLength, 10, 64)
+	if nil != err {
+		return err
+	}
 
-    acceptRanges := header.Get("Accept-Ranges")
-    this.parallelable = "" != acceptRanges && "none" != acceptRanges
+	acceptRanges := header.Get("Accept-Ranges")
+	this.parallelable = "" != acceptRanges && "none" != acceptRanges
 
-    // 优先使用应答头里的文件名
-    filename := header.Get("Content-Disposition")
-    if len(filename) < 1 {
-        return nil
-    }
-    foo := strings.Split(filename, "filename=")
-    if len(foo) < 1 {
-        return nil
-    }
-    filename = foo[1]
-    if '"' == filename[0] {
-        filename = filename[1 : len(filename) - 1]
-    }
-    if 0 < len(filename) {
-        this.filename = filename
-    }
+	// 优先使用应答头里的文件名
+	filename := header.Get("Content-Disposition")
+	if len(filename) < 1 {
+		return nil
+	}
+	foo := strings.Split(filename, "filename=")
+	if len(foo) < 1 {
+		return nil
+	}
+	filename = foo[1]
+	if '"' == filename[0] {
+		filename = filename[1 : len(filename)-1]
+	}
+	if 0 < len(filename) {
+		this.filename = filename
+	}
 
-    return nil
+	return nil
 }
 
 func (this *HttpResource) Filename() string {
-    return this.filename
+	return this.filename
 }
 
 func (this *HttpResource) Size() int64 {
-    return this.size
+	return this.size
 }
 
 func (this *HttpResource) Parallelable() bool {
-    return this.parallelable
+	return this.parallelable
 }
 
 func (this *HttpResource) NewHttpReader() (*HttpReader, error) {
-    return newHttpReader(this.rawUrl)
+	return newHttpReader(this.rawUrl)
 }
