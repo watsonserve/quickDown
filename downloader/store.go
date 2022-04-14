@@ -1,14 +1,13 @@
 package downloader
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 
 	"github.com/watsonserve/goutils"
+	"github.com/watsonserve/quickDown/myio"
 )
 
 func Reduction(txt string) []goutils.Range_t {
@@ -52,32 +51,19 @@ func NewStore(rawUrl string, size int64, outFile string, cfgFileName string) (*S
 /**
  * 线程安全
  */
-func (this *Store_t) SendFileAt(rs io.ReadCloser, w_off int64) error {
-	buf, err := ioutil.ReadAll(rs)
-	if nil != err {
-		return err
-	}
-	bufLen := len(buf)
-	length, err := this.outStream.WriteAt(buf, w_off)
-	if nil != err {
-		return err
-	}
-
-	if bufLen != length {
-		return errors.New(fmt.Sprintf("write faild, len: %d", length))
-	}
-	return nil
+func (that *Store_t) SendFileAt(rs io.ReadCloser, w_off int64) error {
+	return myio.SendFileAt(that.outStream, rs, w_off)
 }
 
-func (this *Store_t) Sync(arr []goutils.Range_t) {
-	this.cfgStream.Truncate(0)
-	fmt.Fprintf(this.cfgStream, "%s\n", this.FileInfo)
+func (that *Store_t) Sync(arr []goutils.Range_t) {
+	that.cfgStream.Truncate(0)
+	fmt.Fprintf(that.cfgStream, "%s\n", that.FileInfo)
 	for i := 0; i < len(arr); i++ {
-		fmt.Fprintf(this.cfgStream, "{start: %d, end: %d}\n", arr[i].Start, arr[i].End)
+		fmt.Fprintf(that.cfgStream, "{start: %d, end: %d}\n", arr[i].Start, arr[i].End)
 	}
 }
 
-func (this *Store_t) Close() {
-	this.outStream.Close()
-	this.cfgStream.Close()
+func (that *Store_t) Close() {
+	that.outStream.Close()
+	that.cfgStream.Close()
 }

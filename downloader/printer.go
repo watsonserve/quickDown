@@ -1,10 +1,14 @@
-package http_downloader
+package downloader
 
 import (
 	"fmt"
 	"strings"
 	"time"
 )
+
+var units = []string{
+	"B", "KB", "MB", "GB",
+}
 
 /**
  * 统计

@@ -12,10 +12,6 @@ const MAX_THREAD_COUNT int64 = 256
 const MAX_BLOCK_SIZE int64 = 1 << 20
 const DEFAULT_BLOCK_SIZE int64 = 65536
 
-var units = []string{
-	"B", "KB", "MB", "GB",
-}
-
 type BlockSlice_t struct {
 	sgmTrd    int
 	size      int64

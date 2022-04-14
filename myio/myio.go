@@ -2,7 +2,10 @@ package myio
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 )
 
 type ReadStream struct {
@@ -11,7 +14,7 @@ type ReadStream struct {
 }
 
 // 用回车换行符分隔
-func (this *ReadStream) SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
+func (readStream *ReadStream) SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	length := len(data)
 	// 有且只有atEOF为true时，data可能是空数组
 	var i int
@@ -41,15 +44,35 @@ func InitReadStream(sock io.Reader) *ReadStream {
 	return this
 }
 
-func (this *ReadStream) ReadLine() (string, error) {
-	hasCuted := this.scanner.Scan()
-	err := this.scanner.Err()
+func (readStream *ReadStream) ReadLine() (string, error) {
+	hasCuted := readStream.scanner.Scan()
+	err := readStream.scanner.Err()
 	if nil != err {
 		return "", err
 	}
 	if !hasCuted {
-		this.EOF = true
+		readStream.EOF = true
 	}
-	msg := this.scanner.Text()
+	msg := readStream.scanner.Text()
 	return msg, nil
+}
+
+/**
+ * 线程安全
+ */
+func SendFileAt(of *os.File, rs io.ReadCloser, wOff int64) error {
+	buf, err := ioutil.ReadAll(rs)
+	if nil != err {
+		return err
+	}
+	bufLen := len(buf)
+	length, err := of.WriteAt(buf, wOff)
+	if nil != err {
+		return err
+	}
+
+	if bufLen != length {
+		return fmt.Errorf("write faild, len: %d", length)
+	}
+	return nil
 }
