@@ -37,7 +37,7 @@ func newHttpClient(uri *url.URL) *http.Client {
 	}
 }
 
-func newHttpReader(rawUrl string) (*HttpReader, error) {
+func NewHttpReader(rawUrl string) (*HttpReader, error) {
 	uri, err := url.Parse(rawUrl)
 	if nil != err {
 		return nil, err
@@ -94,7 +94,7 @@ func (this *HttpReader) Read(start int64, end int64, repeat int) (*Resp_t, error
 	if nil != err {
 		// rebuild
 		rawUrl := this.req.URL.String()
-		that, _err := newHttpReader(rawUrl)
+		that, _err := NewHttpReader(rawUrl)
 
 		if nil == _err {
 			this.client = that.client

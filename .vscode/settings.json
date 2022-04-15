@@ -1,0 +1,4 @@
+{
+  "go.lintTool": "staticcheck",
+  "go.lintFlags": ["ST1017"]
+}

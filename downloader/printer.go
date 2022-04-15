@@ -43,6 +43,12 @@ type Outer struct {
 	preLen int
 }
 
+func NewOuter(preLen int) *Outer {
+	return &Outer{
+		preLen: preLen,
+	}
+}
+
 func (this *Outer) Output(startTime int64, pace int64, size int64, sgmTrd int) {
 	progress, velocity, unit, planTime := statistic(startTime, pace, size)
 	put := fmt.Sprintf(

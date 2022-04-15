@@ -39,7 +39,7 @@ func NewHttpResource(rawUrl string) (*HttpResource, error) {
 }
 
 func (this *HttpResource) loadMeta() (*http.Header, error) {
-	cli, err := this.NewHttpReader()
+	cli, err := NewHttpReader(this.rawUrl)
 	if nil != err {
 		return nil, err
 	}
@@ -107,6 +107,6 @@ func (this *HttpResource) Parallelable() bool {
 	return this.parallelable
 }
 
-func (this *HttpResource) NewHttpReader() (*HttpReader, error) {
-	return newHttpReader(this.rawUrl)
+func (this *HttpResource) Url() string {
+	return this.rawUrl
 }
