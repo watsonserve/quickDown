@@ -14,7 +14,7 @@ import (
 )
 
 func help() {
-	fmt.Fprintln(os.Stderr, "version 0.2.0 License GPL2.0")
+	fmt.Fprintln(os.Stderr, "version 0.3.0 License GPL2.0")
 	fmt.Fprintf(os.Stderr, "(C) watsonserve.com made by James Watson\n\n")
 	fmt.Fprintln(os.Stderr, "use [-b blockSize|-t sumOfThread|-o outputFile|--stdout] url")
 	fmt.Fprintln(os.Stderr, "     -c, --config   use a config file")
