@@ -81,7 +81,7 @@ func (this *HttpResource) GetMeta() error {
 		return nil
 	}
 	foo := strings.Split(filename, "filename=")
-	if len(foo) < 1 {
+	if len(foo) < 2 {
 		return nil
 	}
 	filename = foo[1]
