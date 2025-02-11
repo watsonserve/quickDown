@@ -30,6 +30,9 @@ type Translater struct {
  */
 func (translater *Translater) Work(params goutils.Any_t) goutils.Any_t {
 	ranger := params.(*Range_t)
+	if nil == ranger {
+		return nil
+	}
 	rsp, err := translater.HttpReader.Read(ranger.Start, ranger.End, 3)
 	if nil == err {
 		err = translater.store.SendFileAt(rsp.Body, ranger.Start)
